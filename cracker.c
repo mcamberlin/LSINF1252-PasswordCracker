@@ -63,34 +63,10 @@ int main(int argc, char *argv[]) {
 	int occurenceVoyelles = 1; // par défaut, le critère de sélection est sur le nombre d'occurences des voyelles
 	char[] nomFichierSortie;
 
-	if( strstr(&argv,arg_t) == NULL)
+	if( strstr(&argv,arg_t) == NULL) //char *strstr(const char *haystack, const char *needle)
 	{
 		
 	}
-	
-	
-
-	
-
-	
-	if(strstr(,) == NULL)
-	{// cas ou aucune
-
-	} //char *strstr(const char *haystack, const char *needle)
-
-	
-	
-	// Initialisation un thread par type de fichier
-	// Un pour ceux provenant d'internet
-	// Un pour ceux provenant du disque dur
-	// ...
-
-	/** La fonction contains vérifie si le str2 est contenu dans le str1
-		@pre - str1 = pointeur vers une chaîne de caractères 
-			- str2 = pointeur vers une chaîne de caractères plus petite que str1
-		@post - retourne 1 si str2 est compris dans str1
-			retourne 0 sinon
-	*/	
 	
         return EXIT_SUCCESS; 
 }
