@@ -25,7 +25,7 @@
 
 #include <stdio.h>  
 #include <stdlib.h>
-#include <string.h> // include pour utiliser la fonction strstr() semblalbe à contains()
+#include <string.h> // pour utiliser la fonction strstr() semblable à contains()
 
 
 /** La fonction main est la fonction principale de notre programme:
@@ -36,16 +36,13 @@
 */
 int main(int argc, char *argv[]) {
 
-// tête de la fonction : ./cracker [-t NTHREADS] [-c] [-o FICHIEROUT] FICHIER1 [FICHIER2 ... FICHIERN]
+// ./cracker [-t NTHREADS] [-c] [-o FICHIEROUT] FICHIER1 [FICHIER2 ... FICHIERN]
 
 	/* 1e étape : 
 			1.1 lecture des arguments de la commande de l'exécutable [FAIT]
-			1.2 ouverture des fichiers binaires
+			1.2 ouverture des fichiers binaires [En cours - Merlin]
 			1.3 Initialisation un thread par type de fichier
 	*/
-
-
-	// 
 	
 	//Arguments des fonctions
 	char arg_t[] = "-t";
@@ -81,6 +78,7 @@ int main(int argc, char *argv[]) {
 			if(fichierSortie == NULL) // cas où malloc a planté
 			{ 	
 				free(fichierSortie);
+				printf("Erreur malloc cas où argument -o spécifié");
 				return EXIT_FAILURE;
 			}
 			printf("-o spécifié : %s\n",argv[i+1]);
@@ -93,10 +91,53 @@ int main(int argc, char *argv[]) {
 		}
 	}	
 
-
-
-	/*fichier = fopen (argv[1], "r");  On ouvre le fichier dont le chemin est accessible via argv[1] 
+	/*
+De Coninck Quentin : """ La partie la plus importante à paralléliser n'est pas la lecture des fichiers, et si vous justifiez correctement pourquoi votre implémentation dévie du design initial, c'est bon. La gestion de plusieurs sources en parallèle peut être vue comme une optimisation. Ne considérez donc ce point qu'à la fin de votre projet, lorsque celui-ci fonctionne correctement et parallélise bien avec les threads de calcul. """
 	*/
+
+	for(int i=argc-nbrFichiersEntree; i<nbrFichiersEntree;i++)
+	{
+		int ouverture = open(argv[i],O_RDONLY); //1. ouvrir le fichier
+ 
+		if(ouverture ==-1) // cas où open plante
+		{
+			printf("Erreur open dans l'ouverture du fichier");
+			return -1;
+		}
+		
+		//2. lire le fichier
+		size_t nbreOctets = sizeof(int);
+		int buf = 0;
+		int rslt = 0;
+
+		ssize_t lecture = read(ouverture, &buf, nbreOctets); // read() attempts to read up to count bytes from file descriptor fd into the buffer starting at buf.
+		while(lecture == nbreOctets)
+		{// tant que read se deroule bien
+		    rslt = rslt + buf;
+		    lecture = read(ouverture, &buf,nbreOctets);            
+		}
+		if(lecture == -1) // cas où read plante
+		{
+			printf("Erreur open dans l'ouverture du fichier");
+			//3. Fermer le fichier
+			if(close(ouverture) !=0)  // cas où close plante
+			{
+				printf("Erreur close dans la fermeture du fichier");
+				return EXIT_FAILURE;
+			}
+			return EXIT_FAILURE;
+		
+		}
+		
+		//3. Fermer le fichier
+		if(close(ouverture) !=0) // cas où close plante
+		{    
+			printf("Erreur close dans la fermeture du fichier");
+			return EXIT_FAILURE;
+		}
+	}
+
+
 
 
 
