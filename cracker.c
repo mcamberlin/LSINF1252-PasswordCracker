@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
 // tête de la fonction : ./cracker [-t NTHREADS] [-c] [-o FICHIEROUT] FICHIER1 [FICHIER2 ... FICHIERN]
 
 	/* 1e étape : 
-			1.1 lecture des arguments de la commande de l'exécutable
+			1.1 lecture des arguments de la commande de l'exécutable [FAIT]
 			1.2 ouverture des fichiers binaires
 			1.3 Initialisation un thread par type de fichier
 	*/
