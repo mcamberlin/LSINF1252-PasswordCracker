@@ -25,7 +25,11 @@
 
 #include <stdio.h>  
 #include <stdlib.h>
-#include <string.h> // pour utiliser la fonction strstr() semblable à contains()
+#include <string.h> // pour utiliser la fonction strstr() semblablee à contains()
+#include <unistd.h>  // pour utiliser read(), close()
+#include <sys/types.h> // pour utiliser open()
+#include <sys/stat.h> // pour utiliser open()
+#include <fcntl.h>   // pour utiliser open()
 
 
 /** La fonction main est la fonction principale de notre programme:
@@ -90,32 +94,38 @@ int main(int argc, char *argv[]) {
 			printf("- fichier(s) binaires d'entree = %s ;\n",argv[i]);
 		}
 	}	
+	printf("	---------	--------	--------	--------	");
 
 	/*
-De Coninck Quentin : """ La partie la plus importante à paralléliser n'est pas la lecture des fichiers, et si vous justifiez correctement pourquoi votre implémentation dévie du design initial, c'est bon. La gestion de plusieurs sources en parallèle peut être vue comme une optimisation. Ne considérez donc ce point qu'à la fin de votre projet, lorsque celui-ci fonctionne correctement et parallélise bien avec les threads de calcul. """
+De Coninck Quentin : """ La partie la plus importante à paralléliser n'est pas la lecture des fichiers,
+ et si vous justifiez correctement pourquoi votre implémentation dévie du design initial, c'est bon. 
+La gestion de plusieurs sources en parallèle peut être vue comme une optimisation. Ne considérez donc 
+ce point qu'à la fin de votre projet, lorsque celui-ci fonctionne correctement et parallélise bien 
+avec les threads de calcul. """
 	*/
 
-	for(int i=argc-nbrFichiersEntree; i<nbrFichiersEntree;i++)
+	for(int i=argc-nbrFichiersEntree; i<nbrFichiersEntree;i++) // tant que tous les fichiers n'ont pas été lu
 	{
-		int ouverture = open(argv[i],O_RDONLY); //1. ouvrir le fichier
+		int ouverture = open(argv[i],O_RDONLY); 
  
 		if(ouverture ==-1) // cas où open plante
 		{
 			printf("Erreur open dans l'ouverture du fichier");
-			return -1;
+			return EXIT_FAILURE;
 		}
 		
 		//2. lire le fichier
-		size_t nbreOctets = sizeof(int);
-		int buf = 0;
-		int rslt = 0;
-
-		ssize_t lecture = read(ouverture, &buf, nbreOctets); // read() attempts to read up to count bytes from file descriptor fd into the buffer starting at buf.
-		while(lecture == nbreOctets)
-		{// tant que read se deroule bien
-		    rslt = rslt + buf;
-		    lecture = read(ouverture, &buf,nbreOctets);            
+		size_t nbreOctetsHash = (size_t) 32;
+		void* buf = malloc(nbreOctetsHash);
+		if(buf == NULL)  //cas où malloc plante
+		{
+			printf("Erreur malloc dans la réservation de mémoire du buffer");
+			free(buf);
+			return EXIT_FAILURE;
 		}
+		
+		ssize_t lecture = read(ouverture, &buf, nbreOctetsHash); 
+
 		if(lecture == -1) // cas où read plante
 		{
 			printf("Erreur open dans l'ouverture du fichier");
@@ -123,16 +133,25 @@ De Coninck Quentin : """ La partie la plus importante à paralléliser n'est pas
 			if(close(ouverture) !=0)  // cas où close plante
 			{
 				printf("Erreur close dans la fermeture du fichier");
+				free(buf);
 				return EXIT_FAILURE;
 			}
+			free(buf);
 			return EXIT_FAILURE;
 		
 		}
-		
+		while(lecture == nbreOctetsHash) // tant que read se deroule bien
+		{
+			// creation d'un thread
+
+			lecture = read(ouverture, &buf,nbreOctetsHash);            
+		}
+
 		//3. Fermer le fichier
 		if(close(ouverture) !=0) // cas où close plante
 		{    
 			printf("Erreur close dans la fermeture du fichier");
+			free(buf);
 			return EXIT_FAILURE;
 		}
 	}
@@ -154,8 +173,7 @@ De Coninck Quentin : """ La partie la plus importante à paralléliser n'est pas
 	/* 5e étape : comparaison du MdP qui sort du tableau avec les autres MdP dans une liste chainées.
 	Si plus petit nombre d'occurence dans le nouveau MdP : on ne fait rien
 	Si même nombre d'occurence : on ajoute le MdP à la liste chainées
-	Si plus grand nombre d'occurence : on supprime la liste chainée existance pour la remplacer par le
-	nouveau MdP
+	Si plus grand nombre d'occurence : on supprime la liste chainée existance pour la remplacer par le nouveau MdP
 	*/
 
 	/* 6e étape : quand tous les threads ont fini de s'executer, affiche sur stdout ou écrit dans
