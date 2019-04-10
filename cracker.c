@@ -22,7 +22,6 @@
 */
 
 
-
 #include <stdio.h>  
 #include <stdlib.h>
 #include <string.h> // include pour utiliser la fonction strstr() semblalbe à contains()
@@ -54,26 +53,67 @@ int main(int argc, char *argv[]) {
 	char arg_o[] = "-o";
 
 	//Valeurs par défaut
-	int nbreThreadCalcul = 1;
+	int nbreThreadsCalcul = 1; 
+	bool critereVoyelles = true;
+	char fichierSortie;
+	char fichiersEntree[];
 
-	printf("%d-1 arguments spécifié(s) \n",argc);
-
-	for (int i=1; i < argc; i++) 
+	//printf("%d-1 arguments spécifié(s) \n",argc);
+	
+	int i;
+	for (i=1; i < argc; i++) 
 	{
-		if( strstr(argv[i],arg_t) != NULL)
-		{// cas où l'exécutable spécifie l'argument -t
-			printf("On a spécifié -t \n");
-			nbreThreadCalcul = (int) *argv[2];
-			printf("Le nombre de thread de calcul est : %d \n",nbreThreadCalcul);
+		//printf("Argument %d : %s \n", i, argv[i]);
+
+		if( strstr(argv[i],arg_t) != NULL) // cas où argument -t spécifié
+		{
+			nbreThreadsCalcul = atoi(argv[i+1]); // conversion du tableau de caractères en int ! risque d'erreur
 		}   
 		
+		if (strstr(argv[i],arg_c) != NULL) // cas où argument -c spécifié
+		{
+			bool critereVoyelles = false;
+
+		}		
+		if (strstr(argv[i],arg_o) != NULL)// cas où argument -o spécifié
+		{
+			fichierSortie* = (char*) malloc(sizeof(argv[i+1]));
+			if(fichierSortie == NULL) // cas où malloc a planté
+			{
+				return EXIT_FAILLURE;
+			}
+		}
 	}	
+	
+	int argRestant = argc-i; // argc prend en compte le nom de l'exécutable ?
+	
+	int nbrBytesTableauFichiersEntree = 0;
+
+	for(j=i; j<argRestant;j++)
+	{
+		nbrBytesTableauFichiersEntree = nbrBytesTableauFichiersEntree + (int) sizeof(argv[j]);
+	}
+
+	fichiersEntree* = (char[]*) malloc(nbrBytesTableauFichiersEntree);
+	if(fichiersEntree == NULL) // cas où malloc a planté
+	{
+		return EXIT_FAILLURE;
+	}
+	
+	for(;i<argc;i++)
+	{
+		fichiersEntree[i] = argv[i];
+	}
+	
+
+
+
  
+
+
 
 	/*fichier = fopen (argv[1], "r");  On ouvre le fichier dont le chemin est accessible via argv[1] 
 	*/
-
-
 
 
 
@@ -97,7 +137,6 @@ int main(int argc, char *argv[]) {
 	/* 6e étape : quand tous les threads ont fini de s'executer, affiche sur stdout ou écrit dans
 	FICHIEROUT la liste chainée qu'il reste
 	*/
-
         printf ("\n \n \nFin du programme...\n"); 
         return EXIT_SUCCESS; 
 }
