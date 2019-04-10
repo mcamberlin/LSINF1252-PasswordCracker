@@ -19,6 +19,7 @@
 		- git push
 	Remarques:
 		- Ne pas oublier de faire les docstring à chaque fois
+		- A chaque malloc, ne pas oublier de free en cas d'erreur
 */
 
 
@@ -37,15 +38,14 @@ int main(int argc, char *argv[]) {
 
 // tête de la fonction : ./cracker [-t NTHREADS] [-c] [-o FICHIEROUT] FICHIER1 [FICHIER2 ... FICHIERN]
 
-	/* 1e étape : lecture des fichiers binaires
-			Initialisation un thread par type de fichier
-			Un pour ceux provenant d'internet
-			Un pour ceux provenant du disque dur
-			...
+	/* 1e étape : 
+			1.1 lecture des arguments de la commande de l'exécutable
+			1.2 ouverture des fichiers binaires
+			1.3 Initialisation un thread par type de fichier
 	*/
 
 
-	// 1.1 lecture des arguments de la commande de l'exécutable
+	// 
 	
 	//Arguments des fonctions
 	char arg_t[] = "-t";
@@ -54,61 +54,44 @@ int main(int argc, char *argv[]) {
 
 	//Valeurs par défaut
 	int nbreThreadsCalcul = 1; 
-	bool critereVoyelles = true;
-	char fichierSortie;
-	char fichiersEntree[];
+	int critereVoyelles = 1;
+	int sortieStandard = 1;
+	int nbrFichiersEntree = 0;
 
-	//printf("%d-1 arguments spécifié(s) \n",argc);
-	
-	int i;
-	for (i=1; i < argc; i++) 
+	// considération du cas dans lequel les arguments de l'exécutable sont valides.
+	for (int i=1; i < argc; i++) 
 	{
-		//printf("Argument %d : %s \n", i, argv[i]);
 
 		if( strstr(argv[i],arg_t) != NULL) // cas où argument -t spécifié
 		{
 			nbreThreadsCalcul = atoi(argv[i+1]); // conversion du tableau de caractères en int ! risque d'erreur
+			i+=1;
+			printf("-t spécifié : nombre de threads de calcul = %d ;\n",nbreThreadsCalcul);
 		}   
-		
-		if (strstr(argv[i],arg_c) != NULL) // cas où argument -c spécifié
+		else if (strstr(argv[i],arg_c) != NULL) // cas où argument -c spécifié
 		{
-			bool critereVoyelles = false;
+			critereVoyelles = 0;
+			printf("-c spécifié : critère de sélection = occurence des consonnes ;\n");
 
 		}		
-		if (strstr(argv[i],arg_o) != NULL)// cas où argument -o spécifié
+		else if (strstr(argv[i],arg_o) != NULL)// cas où argument -o spécifié
 		{
-			fichierSortie* = (char*) malloc(sizeof(argv[i+1]));
+			sortieStandard = 0;
+			char* fichierSortie = (char*) malloc(sizeof(argv[i+1]));
 			if(fichierSortie == NULL) // cas où malloc a planté
-			{
-				return EXIT_FAILLURE;
+			{ 	
+				free(fichierSortie);
+				return EXIT_FAILURE;
 			}
+			printf("-o spécifié : %s\n",argv[i+1]);
+			i+=1;
+		}
+		else
+		{
+			nbrFichiersEntree+=1;
+			printf("- fichier(s) binaires d'entree = %s ;\n",argv[i]);
 		}
 	}	
-	
-	int argRestant = argc-i; // argc prend en compte le nom de l'exécutable ?
-	
-	int nbrBytesTableauFichiersEntree = 0;
-
-	for(j=i; j<argRestant;j++)
-	{
-		nbrBytesTableauFichiersEntree = nbrBytesTableauFichiersEntree + (int) sizeof(argv[j]);
-	}
-
-	fichiersEntree* = (char[]*) malloc(nbrBytesTableauFichiersEntree);
-	if(fichiersEntree == NULL) // cas où malloc a planté
-	{
-		return EXIT_FAILLURE;
-	}
-	
-	for(;i<argc;i++)
-	{
-		fichiersEntree[i] = argv[i];
-	}
-	
-
-
-
- 
 
 
 
