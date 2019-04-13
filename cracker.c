@@ -30,7 +30,7 @@
 #include <sys/types.h> // pour utiliser open()
 #include <sys/stat.h> // pour utiliser open()
 #include <fcntl.h>   // pour utiliser open()
-
+#include <ctype.h>  //pour isdigit
 
 /** La fonction main est la fonction principale de notre programme:
 	@pre - argc = nombre d'arguments passés lors de l'appel de l'exécutable
@@ -68,14 +68,14 @@ int main(int argc, char *argv[]) {
 			nbreThreadsCalcul = atoi(argv[i+1]); // conversion du tableau de caractères en int ! risque d'erreur
 			i+=1;
 			printf("-t spécifié : nombre de threads de calcul = %d ;\n",nbreThreadsCalcul);
-		}   
-		else if (strstr(argv[i],arg_c) != NULL) // cas où argument -c spécifié
+		}
+		if (strstr(argv[i],arg_c) != NULL) // cas où argument -c spécifié
 		{
 			critereVoyelles = 0;
 			printf("-c spécifié : critère de sélection = occurence des consonnes ;\n");
 
 		}		
-		else if (strstr(argv[i],arg_o) != NULL)// cas où argument -o spécifié
+		if (strstr(argv[i],arg_o) != NULL)// cas où argument -o spécifié
 		{
 			sortieStandard = 0;
 			char* fichierSortie = (char*) malloc(sizeof(argv[i+1]));
@@ -106,14 +106,12 @@ avec les threads de calcul. """
 
 	for(int i=argc-nbrFichiersEntree; i<nbrFichiersEntree;i++) // tant que tous les fichiers n'ont pas été lu
 	{
-		int ouverture = open(argv[i],O_RDONLY); 
- 
+		int ouverture = open(argv[i],O_RDONLY);
 		if(ouverture ==-1) // cas où open plante
 		{
 			printf("Erreur open dans l'ouverture du fichier");
 			return EXIT_FAILURE;
 		}
-		
 		//2. lire le fichier
 		size_t nbreOctetsHash = (size_t) 32;
 		void* buf = malloc(nbreOctetsHash);
@@ -123,7 +121,7 @@ avec les threads de calcul. """
 			free(buf);
 			return EXIT_FAILURE;
 		}
-		
+
 		ssize_t lecture = read(ouverture, &buf, nbreOctetsHash); 
 
 		if(lecture == -1) // cas où read plante
@@ -179,6 +177,7 @@ avec les threads de calcul. """
 	/* 6e étape : quand tous les threads ont fini de s'executer, affiche sur stdout ou écrit dans
 	FICHIEROUT la liste chainée qu'il reste
 	*/
-        printf ("\n \n \nFin du programme...\n"); 
-        return EXIT_SUCCESS; 
+        printf ("\n \n \nFin du programme...\n");
+        return EXIT_SUCCESS;
+
 }
