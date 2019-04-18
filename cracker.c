@@ -44,10 +44,11 @@ char arg_o[] = "-o";
 
 //Valeurs par défaut
 int nbreThreadsCalcul = 1;
+int N = 2* nbreThreadsCalcul; // Le nombre de slot du buffer
 int critereVoyelles = 1;
 int sortieStandard = 1;
 int nbrFichiersEntree = 0;
-int fin_de_lecture = 1;       
+int fin_de_lecture = 0;       
 
 //Initialisation du mutex et des 2 sémaphores 
 pthread_mutex_t mutex_hash;
@@ -60,6 +61,29 @@ typedef struct hash{
 	char hash[32]; // 1 hash = 32 bytes et 1char = 1 byte
 }hash;
 
+/** La fonction affiche_hash affiche le hash
+	@pre - 
+	@post - affiche le hash
+*/
+void* affiche_hash()
+{
+	while(fin_de_lecture)
+	{
+		sem_wait(&full_hash);
+		pthread_mutex_lock(&mutex_hash);
+		for(int i=0; i<2*nbreThreadsCalcul; i++)
+		{
+			if(tab_hash[i]!=NULL) //si la case est remplie
+			{
+				printf("le hash affiché est %d\n",*(tab_hash[i]->hash));
+				tab_hash[i]=NULL;
+			}
+		}
+		pthread_mutex_unlock(&mutex_hash);
+		sem_post(&empty_hash);
+	}
+	return NULL;
+}
 
 
 /*-------------------Lecture de fichier ----------------------------*/
@@ -72,82 +96,73 @@ typedef struct hash{
 */
 void *lectureFichier(void * fichier)
 {
-	//for(int i=0; i<1; i++) pour plusieurs fichiers changer
-	//{
-	printf("debut lectureFichier\n");
-	printf("FIXONS LA CHOSE : taille de hash-> %ld     taile de 32 char -> %ld\n", sizeof(hash), 32*sizeof(char));
-
-	int fd = open((char*)fichier, O_RDONLY); //pour plusieurs fichiers mettre file[i]
+	int fd = open((char*)fichier, O_RDONLY);
 	if(fd ==-1)
 	{
-		return NULL;
+		printf("Erreur d'ouverture dans lectureFichier\n");
+		return -1;
 	}
 	
 	hash* ptr = (hash*) malloc(32);
-	// printf("taille de ptr : %ld\n", sizeof(ptr));
 	if(ptr==NULL)
 	{
-		printf("erreur malloc\n");
+		printf("Erreur malloc allocation mémoire ptr dans lectureFichier\n");
+		return -2;
 	}
 
-	int r = read(fd, ptr,32*sizeof(char));
-	printf("lectureFichier : adresse de ptr = %p    taille de char : %ld\n", ptr, sizeof(char));
+	int r = read(fd, ptr,32);
 	if(r==-1)
 	{
-		printf("erreur de lecture car r==-1\n");
+		printf("Erreur de lecture dans lectureFichier\n");
 		free(ptr);
 		close(fd);
-		return NULL;
+		return -1;
 	}
-	printf("lectureFichier : le contenu de ptr apres read est : %s   r=%d\n", (char*) ptr,r);
-	while(fin_de_lecture) //tant qu'on est pas au bout du fichier
+	
+	while(!fin_de_lecture) //tant qu'on est pas au bout du fichier
 	{
-		printf("debut while lecture\n");
-		printf("dans le tableau : %p\n", *(tab_hash));
 		sem_wait(&empty_hash);
 		pthread_mutex_lock(&mutex_hash);
-		printf("debut section critique");
-		//section critique : on chercher de la place dans le tableau et on ajoute
+		
+		//Début section critique
+
+		// Chercher de la place dans le tableau pour ajouter 
 		int place_trouvee = 1;
-		for(int i=0; i<2*nbreThreadsCalcul  && place_trouvee; i++) //cherche la place dispo
+		for(int i=0; i<N  && place_trouvee; i++) 
 		{
-			printf("lectureFichier : dans boucle for i=%d \n",i);
-			printf("lectureFichier : adresse dans tabhash avant le if : %p  OK\n",*(tab_hash+i));
 			if(*(tab_hash+i)==NULL) //si la case est vide
 			{
-				printf("Dans if\n");
 				hash* ptrhash = (hash*) malloc(sizeof(hash));
-				printf("ptrhash : %ld  =?  ptr : %ld\n", sizeof(*ptrhash), sizeof(*ptr));
-				printf("memcpy fuck you \n");
-				memcpy( ptrhash, ptr, 32*sizeof(char));
-				printf("MEME CHOSE ? -> %d\n", memcmp((void*) ptrhash, (void*) ptr, 32*sizeof(char)));
-				printf("ptrhash : %s",ptrhash->hash);
+				if(ptrhash == NULL)
+				{
+					printf("Erreur malloc allocation mémoire ptrhash dans lectureFichier\n");
+					return -2;
+				}
+				memcpy( ptrhash, ptr, 32);
+				memcmp((void*) ptrhash, (void*) ptr;
 				*(tab_hash+i)=ptrhash;
-				printf("dans le tableau : %p     ptrhash : %p\n", *(tab_hash+i), ptrhash);
 				place_trouvee=0;
-				printf("HASH DEDANS\n");
 			}
 		}
-		printf("dans le tableau : %p\n", *(tab_hash));
-		printf("debut dodo");
+		
+		printf("Dodo");
 		sleep(3);
-		printf("fin dodo\n");
+		printf("Réveil\n");
+
+		// Fin section critique
 		pthread_mutex_unlock(&mutex_hash);
 		sem_post(&full_hash);
+
 		//lecture du hash suivant
-		int r = read(fd, ptr, 32*sizeof(char));
-		printf("lectureFichier : le contenu de ptr apres read est : %s   r=%d\n\n", (char*) ptr,r);
+		r = read(fd, ptr, 32);
 		if(r<32)
 		{
-			fin_de_lecture=0;
+			fin_de_lecture=1;
 		}
-		printf("dans le tableau : %p\n", *(tab_hash));
 	}
-	//}
 	free(ptr);
-	printf("fin lecture\n");
 	close(fd);
-	return NULL;
+	return 0;
 }
 
 /*--------------------------------------------------------------*/
@@ -157,17 +172,13 @@ void *lectureFichier(void * fichier)
 	@pre - argc = nombre d'arguments passés lors de l'appel de l'exécutable
 		- argv = tableau de pointeurs reprenant les arguments donnés par l'exécutable
 	@post - exécute les différentes instructions du code
-
+		- retourn EXIT_FAILURE si une erreur se produit
 */
 int main(int argc, char *argv[]) {
 
 // ./cracker [-t NTHREADS] [-c] [-o FICHIEROUT] FICHIER1 [FICHIER2 ... FICHIERN]
 
-	/* 1e étape : 
-			1.1 lecture des arguments de la commande de l'exécutable [FAIT]
-			1.2 ouverture des fichiers binaires [En cours - Merlin]
-			1.3 Initialisation un thread par type de fichier
-	*/
+/* 1e étape :  lecture des arguments de la commande de l'exécutable [FAIT]*/
 	
 	// considération du cas dans lequel les arguments de l'exécutable sont valides.
 	for (int i=1; i < argc; i++) 
@@ -177,6 +188,7 @@ int main(int argc, char *argv[]) {
 		{
 			nbreThreadsCalcul = atoi(argv[i+1]); // conversion du tableau de caractères en int ! risque d'erreur
 			i+=1;
+			N = nbreThreadsCalcul*2;
 			printf("-t spécifié : nombre de threads de calcul = %d ;\n",nbreThreadsCalcul);
 		}
 		if (strstr(argv[i],arg_c) != NULL) // cas où argument -c spécifié
@@ -204,132 +216,64 @@ int main(int argc, char *argv[]) {
 			printf("- fichier(s) binaires d'entree = %s ;\n",argv[i]);
 		}
 	}	
-	printf("	---------	--------	--------	--------	");
+	
 
-	/*
-De Coninck Quentin : """ La partie la plus importante à paralléliser n'est pas la lecture des fichiers,
- et si vous justifiez correctement pourquoi votre implémentation dévie du design initial, c'est bon. 
-La gestion de plusieurs sources en parallèle peut être vue comme une optimisation. Ne considérez donc 
-ce point qu'à la fin de votre projet, lorsque celui-ci fonctionne correctement et parallélise bien 
-avec les threads de calcul. """
-	*/
-
-	for(int i=argc-nbrFichiersEntree; i<nbrFichiersEntree;i++) // tant que tous les fichiers n'ont pas été lu
-	{
-		int ouverture = open(argv[i],O_RDONLY);
-		if(ouverture ==-1) // cas où open plante
-		{
-			printf("Erreur open dans l'ouverture du fichier");
-			return EXIT_FAILURE;
-		}
-		//2. lire le fichier
-		size_t nbreOctetsHash = (size_t) 32;
-		void* buf = malloc(nbreOctetsHash);
-		if(buf == NULL)  //cas où malloc plante
-		{
-			printf("Erreur malloc dans la réservation de mémoire du buffer");
-			free(buf);
-			return EXIT_FAILURE;
-		}
-
-		ssize_t lecture = read(ouverture, &buf, nbreOctetsHash); 
-
-		if(lecture == -1) // cas où read plante
-		{
-			printf("Erreur open dans l'ouverture du fichier");
-			//3. Fermer le fichier
-			if(close(ouverture) !=0)  // cas où close plante
-			{
-				printf("Erreur close dans la fermeture du fichier");
-				free(buf);
-				return EXIT_FAILURE;
-			}
-			free(buf);
-			return EXIT_FAILURE;
-		
-		}
-		while(lecture == nbreOctetsHash) // tant que read se deroule bien
-		{
-			// creation d'un thread
-
-			lecture = read(ouverture, &buf,nbreOctetsHash);            
-		}
-
-		//3. Fermer le fichier
-		if(close(ouverture) !=0) // cas où close plante
-		{    
-			printf("Erreur close dans la fermeture du fichier");
-			free(buf);
-			return EXIT_FAILURE;
-		}
-	}
-
-
-	/* 2e étape : création du tableau contenant les hash
-	*/
+/* 2e étape :  lecture des fichiers d'entree */
 
 	//Initialisation du mutex et des sémaphores
 	pthread_mutex_init(&mutex_hash, NULL);
-	int N = 2*nbreThreadsCalcul; // Initialisation de la taille du buffer
 	sem_init(&empty_hash, 0,N);
 	sem_init(&full_hash, 0, 0);
 
 
 	//Création du tableau contenant les hash
-	tab_hash = (struct hash**) malloc( N*sizeof(hash));
-	void* ptr = malloc(N*sizeof(hash));
-
-
+	tab_hash = (struct hash**) malloc( N*sizeof(hash));//ATTENTION : c'est un tableau d'adresse, pas de hash (c'est subtile)
 	if(tab_hash==NULL)
 	{
-		printf("err malloc tab_hash");
-		return -1;
+		printf("Erreur malloc allocation mémoire pour tab_hash");
+		return EXIT_FAILURE;
 	}
-	printf("adresse de tabhash : %p\ntaille de struct_hash : %d\n\n",tab_hash,(int) sizeof(hash));
-	//ATTENTION : c'est un tableau d'adresse, pas de hash (c'est subtil)
-	//initialise tout à zéro :
+	
+	//Initialisation des cellules du tableaux d'adresse à zéro
 	for(int i=0; i<N; i++)
 	{
 		*(tab_hash+i)=NULL;
 	}
 
+	// Me - Quelle est l'utilité de la variable fichier ?
 
-
-	char* fichier = (char*) malloc(sizeof(argv[1]));
+	//Malloc car utilisé par d'autre thread
+	char* fichier = (char*) malloc(sizeof(argv[1])); // Me - le fichier d'entree ne se situe pas nécessairement à la premiere place du tableau argv:/
 	strcpy(fichier,argv[1]);
-	printf("le fichier à lire est : %s\n",fichier); //malloc car utilisé par d'autre thread
+		
+	//for(int i=0; i<nbrFichiersEntree;i++)
+	//{
+		lectureFichier( argv[1]); // argv[i] pour plusieurs fichiers d'entree
+		affiche_hash();
+	//}
+	
 
-	/*
-	printf("debut fonction lectureFichier\n");
-	lectureFichier( argv[1]);
-	affiche_hash();
 
-	*/
-
-	//creation des thread
-	printf("initialisation des threads");
+	//Initialisation des threads
 	pthread_t producteur;
 	pthread_t consommateur;
 
 
-	int err;
-	printf("creation thread1\n");
-	err = pthread_create(&producteur, NULL, &lectureFichier, (void*) fichier);
-	if(err !=0)
+	int err = pthread_create(&producteur, NULL, &lectureFichier, (void*) fichier);
+	if(err !=0) // cas où pthread_create plante
 	{
-		printf("err thread1\n");
-		return -1;
+		printf("Erreur pthread_create 1\n");
+		return EXIT_FAILURE;
 	}
+
 	err = pthread_create(&consommateur, NULL, &affiche_hash, (void*)NULL);
 	if(err!=0)
 	{
-		printf("err thread2");
-		return -1;
+		printf("Erreur pthread_create 2");
+		return EXIT_FAILURE;
 	}
 
-	printf("join threads producteur\n");
 	pthread_join(producteur,NULL);
-	printf("join, thread consommateur\n");
 	pthread_join(consommateur,NULL);
 
 
@@ -351,26 +295,4 @@ avec les threads de calcul. """
         printf ("\n \n \nFin du programme...\n");
         return EXIT_SUCCESS;
 
-}
-
-//fonction test consommateur
-void* affiche_hash(void* param)
-{
-	printf("debut affiche\n");
-	while(fin_de_lecture)
-	{
-		sem_wait(&full_hash);
-		pthread_mutex_lock(&mutex_hash);
-		for(int i=0; i<2*nbreThreadsCalcul; i++)
-		{
-			if(tab_hash[i]!=NULL) //si la case est remplie
-			{
-				printf("le hash affiché est %d\n",*(tab_hash[i]->hash));
-				tab_hash[i]=NULL;
-			}
-		}
-		pthread_mutex_unlock(&mutex_hash);
-		sem_post(&empty_hash);
-	}
-	return NULL;
 }
