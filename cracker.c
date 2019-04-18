@@ -55,14 +55,11 @@ sem_t empty_hash;
 sem_t full_hash; 
 
 
-//Déclaration d'une structure représentant un hash de 32bytes 
+//Déclaration d'une structure représentant un hash  
 typedef struct hash{
-	char hash[32]; //(1char = 1 byte)
+	char hash[32]; // 1 hash = 32 bytes et 1char = 1 byte
 }hash;
 
-
-//declaration de tab_hash contenant les hash apres la lecture (1 hash = 32 bytes)
-hash** tab_hash;
 
 
 /*-------------------Lecture de fichier ----------------------------*/
@@ -152,32 +149,6 @@ void *lectureFichier(void * fichier)
 	close(fd);
 	return NULL;
 }
-
-
-
-
-//fonction test consommateur
-void* affiche_hash(void* param)
-{
-	printf("debut affiche\n");
-	while(fin_de_lecture)
-	{
-		sem_wait(&full_hash);
-		pthread_mutex_lock(&mutex_hash);
-		for(int i=0; i<2*nbreThreadsCalcul; i++)
-		{
-			if(tab_hash[i]!=NULL) //si la case est remplie
-			{
-				printf("le hash affiché est %d\n",*(tab_hash[i]->hash));
-				tab_hash[i]=NULL;
-			}
-		}
-		pthread_mutex_unlock(&mutex_hash);
-		sem_post(&empty_hash);
-	}
-	return NULL;
-}
-
 
 /*--------------------------------------------------------------*/
 
@@ -294,9 +265,6 @@ avec les threads de calcul. """
 	}
 
 
-
-
-
 	/* 2e étape : création du tableau contenant les hash
 	*/
 
@@ -308,7 +276,10 @@ avec les threads de calcul. """
 
 
 	//Création du tableau contenant les hash
-	tab_hash = (struct hash**) malloc( (size_t) N*sizeof(hash));
+	tab_hash = (struct hash**) malloc( N*sizeof(hash));
+	void* ptr = malloc(N*sizeof(hash));
+
+
 	if(tab_hash==NULL)
 	{
 		printf("err malloc tab_hash");
@@ -380,4 +351,26 @@ avec les threads de calcul. """
         printf ("\n \n \nFin du programme...\n");
         return EXIT_SUCCESS;
 
+}
+
+//fonction test consommateur
+void* affiche_hash(void* param)
+{
+	printf("debut affiche\n");
+	while(fin_de_lecture)
+	{
+		sem_wait(&full_hash);
+		pthread_mutex_lock(&mutex_hash);
+		for(int i=0; i<2*nbreThreadsCalcul; i++)
+		{
+			if(tab_hash[i]!=NULL) //si la case est remplie
+			{
+				printf("le hash affiché est %d\n",*(tab_hash[i]->hash));
+				tab_hash[i]=NULL;
+			}
+		}
+		pthread_mutex_unlock(&mutex_hash);
+		sem_post(&empty_hash);
+	}
+	return NULL;
 }
