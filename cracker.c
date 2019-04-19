@@ -44,7 +44,7 @@ char arg_o[] = "-o";
 
 //Valeurs par défaut
 int nbreThreadsCalcul = 1;
-int N = 2* nbreThreadsCalcul; // Le nombre de slot du buffer
+int N = 2; // Le nombre de slot du buffer
 int critereVoyelles = 1;
 int sortieStandard = 1;
 int nbrFichiersEntree = 0;
@@ -61,24 +61,34 @@ typedef struct hash{
 	char hash[32]; // 1 hash = 32 bytes et 1char = 1 byte
 }hash;
 
+//Déclaration d'un tableau de structure de hash
+hash** tab_hash;
+
 /** La fonction affiche_hash affiche le hash
 	@pre - 
 	@post - affiche le hash
 */
 void* affiche_hash()
 {
-	while(fin_de_lecture)
+	while(!fin_de_lecture)
 	{
 		sem_wait(&full_hash);
 		pthread_mutex_lock(&mutex_hash);
+		//début section critique
 		for(int i=0; i<2*nbreThreadsCalcul; i++)
 		{
-			if(tab_hash[i]!=NULL) //si la case est remplie
+			if(*(tab_hash+i)!=NULL) //si la case est remplie
 			{
-				printf("le hash affiché est %d\n",*(tab_hash[i]->hash));
-				tab_hash[i]=NULL;
+				printf("le hash affiché grace à affiche_hash est %s\n",(char*) ((*(tab_hash+i))->hash));
+				*(tab_hash+i)=NULL;
 			}
 		}
+
+		printf("Dodo affaiche\n");
+		sleep(2);
+		printf("Réveil\n");
+
+
 		pthread_mutex_unlock(&mutex_hash);
 		sem_post(&empty_hash);
 	}
@@ -102,11 +112,12 @@ void *lectureFichier(void * fichier)
 		printf("Erreur d'ouverture dans lectureFichier\n");
 		return -1;
 	}
-	
+
 	hash* ptr = (hash*) malloc(32);
 	if(ptr==NULL)
 	{
 		printf("Erreur malloc allocation mémoire ptr dans lectureFichier\n");
+		close(fd);
 		return -2;
 	}
 
@@ -118,17 +129,17 @@ void *lectureFichier(void * fichier)
 		close(fd);
 		return -1;
 	}
-	
+
 	while(!fin_de_lecture) //tant qu'on est pas au bout du fichier
 	{
 		sem_wait(&empty_hash);
 		pthread_mutex_lock(&mutex_hash);
-		
+
 		//Début section critique
 
-		// Chercher de la place dans le tableau pour ajouter 
+		// Chercher de la place dans le tableau pour ajouter
 		int place_trouvee = 1;
-		for(int i=0; i<N  && place_trouvee; i++) 
+		for(int i=0; i<N  && place_trouvee; i++)
 		{
 			if(*(tab_hash+i)==NULL) //si la case est vide
 			{
@@ -136,17 +147,19 @@ void *lectureFichier(void * fichier)
 				if(ptrhash == NULL)
 				{
 					printf("Erreur malloc allocation mémoire ptrhash dans lectureFichier\n");
+					close(fd);
+					free(ptr);
 					return -2;
 				}
 				memcpy( ptrhash, ptr, 32);
-				memcmp((void*) ptrhash, (void*) ptr;
 				*(tab_hash+i)=ptrhash;
+				printf("Le hash placé dans tab_hash est %s", (char*) ((*(tab_hash+i))->hash));
 				place_trouvee=0;
 			}
 		}
-		
-		printf("Dodo");
-		sleep(3);
+
+		printf("Dodo lecture\n");
+		sleep(2);
 		printf("Réveil\n");
 
 		// Fin section critique
@@ -179,9 +192,9 @@ int main(int argc, char *argv[]) {
 // ./cracker [-t NTHREADS] [-c] [-o FICHIEROUT] FICHIER1 [FICHIER2 ... FICHIERN]
 
 /* 1e étape :  lecture des arguments de la commande de l'exécutable [FAIT]*/
-	
+
 	// considération du cas dans lequel les arguments de l'exécutable sont valides.
-	for (int i=1; i < argc; i++) 
+	for (int i=1; i < argc; i++)
 	{
 
 		if( strstr(argv[i],arg_t) != NULL) // cas où argument -t spécifié
@@ -196,13 +209,13 @@ int main(int argc, char *argv[]) {
 			critereVoyelles = 0;
 			printf("-c spécifié : critère de sélection = occurence des consonnes ;\n");
 
-		}		
+		}
 		if (strstr(argv[i],arg_o) != NULL)// cas où argument -o spécifié
 		{
 			sortieStandard = 0;
 			char* fichierSortie = (char*) malloc(sizeof(argv[i+1]));
 			if(fichierSortie == NULL) // cas où malloc a planté
-			{ 	
+			{
 				free(fichierSortie);
 				printf("Erreur malloc cas où argument -o spécifié");
 				return EXIT_FAILURE;
@@ -215,8 +228,8 @@ int main(int argc, char *argv[]) {
 			nbrFichiersEntree+=1;
 			printf("- fichier(s) binaires d'entree = %s ;\n",argv[i]);
 		}
-	}	
-	
+	}
+
 
 /* 2e étape :  lecture des fichiers d'entree */
 
@@ -230,10 +243,10 @@ int main(int argc, char *argv[]) {
 	tab_hash = (struct hash**) malloc( N*sizeof(hash));//ATTENTION : c'est un tableau d'adresse, pas de hash (c'est subtile)
 	if(tab_hash==NULL)
 	{
-		printf("Erreur malloc allocation mémoire pour tab_hash");
+		printf("Erreur malloc allocation mémoire pour tab_hash\n");
 		return EXIT_FAILURE;
 	}
-	
+
 	//Initialisation des cellules du tableaux d'adresse à zéro
 	for(int i=0; i<N; i++)
 	{
@@ -241,17 +254,17 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Me - Quelle est l'utilité de la variable fichier ?
+	// Arthur : c'est pour que le open dans la fonction lectureFichier puisse accéder à ce fichier
 
 	//Malloc car utilisé par d'autre thread
 	char* fichier = (char*) malloc(sizeof(argv[1])); // Me - le fichier d'entree ne se situe pas nécessairement à la premiere place du tableau argv:/
 	strcpy(fichier,argv[1]);
-		
+
 	//for(int i=0; i<nbrFichiersEntree;i++)
 	//{
-		lectureFichier( argv[1]); // argv[i] pour plusieurs fichiers d'entree
-		affiche_hash();
+//		lectureFichier( argv[1]); // argv[i] pour plusieurs fichiers d'entree
+//		affiche_hash();
 	//}
-	
 
 
 	//Initialisation des threads
@@ -259,23 +272,30 @@ int main(int argc, char *argv[]) {
 	pthread_t consommateur;
 
 
-	int err = pthread_create(&producteur, NULL, &lectureFichier, (void*) fichier);
-	if(err !=0) // cas où pthread_create plante
+	for(int i=0; i<1; i++)
 	{
-		printf("Erreur pthread_create 1\n");
-		return EXIT_FAILURE;
+		int err = pthread_create(&producteur, NULL, &lectureFichier, (void*) fichier);
+		if(err !=0) // cas où pthread_create plante
+		{
+			printf("Erreur pthread_create 1\n");
+			return EXIT_FAILURE;
+		}
+
+		err = pthread_create(&consommateur, NULL, &affiche_hash, (void*)NULL);
+		if(err!=0)
+		{
+			printf("Erreur pthread_create 2\n");
+			return EXIT_FAILURE;
+		}
 	}
 
-	err = pthread_create(&consommateur, NULL, &affiche_hash, (void*)NULL);
-	if(err!=0)
+	for(int i=0; i<1; i++)
 	{
-		printf("Erreur pthread_create 2");
-		return EXIT_FAILURE;
+		printf("join producteur\n");
+		pthread_join(producteur,NULL);
+		printf("join consommateur\n");
+		pthread_join(consommateur,NULL);
 	}
-
-	pthread_join(producteur,NULL);
-	pthread_join(consommateur,NULL);
-
 
 	/* 3e étape : les threads de calculs de reverse
 	*/
