@@ -4,7 +4,7 @@
 	Auteurs:
 		- CAMBERLIN Merlin
 		- PISVIN Arthur
-	Version: 18-04-19 - fusion de crackerArthur.c et cracker.c avec modifications apportées
+	Version: 19-04-19 - Petites corrections et commentaires de Merlin
 
 	Commandes à indiquer dans le compilateur:
 		- cd ~/Documents/LSINF1252-PasswordCracker-Gr118-2019
@@ -20,6 +20,8 @@
 	Remarques:
 		- Ne pas oublier de faire les docstring à chaque fois
 		- A chaque malloc, ne pas oublier de free en cas d'erreur
+		- A chaque initialisation, tester la valeur de retour pour s'assurer du bon fonctionnement
+		- Ajuster la version et le commentaire avec
 */
 
 
@@ -44,11 +46,11 @@ char arg_o[] = "-o";
 
 //Valeurs par défaut
 int nbreThreadsCalcul = 1;
-int N = 2; // Le nombre de slot du buffer
-int critereVoyelles = 1;
-int sortieStandard = 1;
-int nbrFichiersEntree = 0;
-int fin_de_lecture = 0;       
+int N = 2; 			// Le nombre de slot du buffer
+int critereVoyelles = 1;	//true
+int sortieStandard = 1;		//true
+int nbreFichiersEntree = 0;
+int fin_de_lecture = 0;       	//false
 
 //Initialisation du mutex et des 2 sémaphores 
 pthread_mutex_t mutex_hash;
@@ -158,8 +160,8 @@ void *lectureFichier(void * fichier)
 			}
 		}
 
-		printf("Dodo lecture\n");
-		sleep(2);
+		printf("Dodo lectureFichier\n");
+		sleep(1);
 		printf("Réveil\n");
 
 		// Fin section critique
@@ -189,17 +191,15 @@ void *lectureFichier(void * fichier)
 */
 int main(int argc, char *argv[]) {
 
-// ./cracker [-t NTHREADS] [-c] [-o FICHIEROUT] FICHIER1 [FICHIER2 ... FICHIERN]
-
 /* 1e étape :  lecture des arguments de la commande de l'exécutable [FAIT]*/
 
-	// considération du cas dans lequel les arguments de l'exécutable sont valides.
-	for (int i=1; i < argc; i++)
+	
+	for (int i=1; i < argc; i++) // hypothèse selon laquelle la commande est exactement ./cracker [-t NTHREADS] [-c] [-o FICHIEROUT] FICHIER1 [FICHIER2 ... FICHIERN]
 	{
 
 		if( strstr(argv[i],arg_t) != NULL) // cas où argument -t spécifié
 		{
-			nbreThreadsCalcul = atoi(argv[i+1]); // conversion du tableau de caractères en int ! risque d'erreur
+			nbreThreadsCalcul = atoi(argv[i+1]); // conversion du tableau de caractères en int
 			i+=1;
 			N = nbreThreadsCalcul*2;
 			printf("-t spécifié : nombre de threads de calcul = %d ;\n",nbreThreadsCalcul);
@@ -225,7 +225,7 @@ int main(int argc, char *argv[]) {
 		}
 		else
 		{
-			nbrFichiersEntree+=1;
+			nbreFichiersEntree+=1;
 			printf("- fichier(s) binaires d'entree = %s ;\n",argv[i]);
 		}
 	}
@@ -235,15 +235,28 @@ int main(int argc, char *argv[]) {
 
 	//Initialisation du mutex et des sémaphores
 	pthread_mutex_init(&mutex_hash, NULL);
-	sem_init(&empty_hash, 0,N);
-	sem_init(&full_hash, 0, 0);
+	
+	int err = sem_init(&empty_hash, 0,N);
+	if(err == 0)
+	{
+		printf("Erreur sem_init du sémaphore empty_hash\n");
+		return EXIT_FAILURE;
+	}
+
+	err = sem_init(&full_hash, 0, 0);
+	if(err == 0)
+	{
+		printf("Erreur sem_init du sémaphore full_hash\n");
+		return EXIT_FAILURE;
+	}
 
 
 	//Création du tableau contenant les hash
-	tab_hash = (struct hash**) malloc( N*sizeof(hash));//ATTENTION : c'est un tableau d'adresse, pas de hash (c'est subtile)
+	tab_hash = (struct hash**) malloc( N*sizeof(hash*));	// !!! tab_hash est un tableau d'adresses et pas de hash
 	if(tab_hash==NULL)
 	{
 		printf("Erreur malloc allocation mémoire pour tab_hash\n");
+		free(tab_hash);
 		return EXIT_FAILURE;
 	}
 
@@ -253,36 +266,28 @@ int main(int argc, char *argv[]) {
 		*(tab_hash+i)=NULL;
 	}
 
-	// Me - Quelle est l'utilité de la variable fichier ?
-	// Arthur : c'est pour que le open dans la fonction lectureFichier puisse accéder à ce fichier
-
 	//Malloc car utilisé par d'autre thread
-	char* fichier = (char*) malloc(sizeof(argv[1])); // Me - le fichier d'entree ne se situe pas nécessairement à la premiere place du tableau argv:/
+	char* fichier = (char*) malloc(sizeof(argv[1])); // Me - le fichier d'entree ne se situe pas nécessairement à la premiere place du tableau argv
 	strcpy(fichier,argv[1]);
-
-	//for(int i=0; i<nbrFichiersEntree;i++)
-	//{
-//		lectureFichier( argv[1]); // argv[i] pour plusieurs fichiers d'entree
-//		affiche_hash();
-	//}
 
 
 	//Initialisation des threads
 	pthread_t producteur;
 	pthread_t consommateur;
 
-
+	
+	// Boucle pour la creation de plusieurs threads pour la lecture
 	for(int i=0; i<1; i++)
 	{
-		int err = pthread_create(&producteur, NULL, &lectureFichier, (void*) fichier);
-		if(err !=0) // cas où pthread_create plante
+		err = pthread_create(&producteur, NULL, &lectureFichier, (void*) fichier);
+		if(err !=0) // cas où pthread_create a planté
 		{
 			printf("Erreur pthread_create 1\n");
 			return EXIT_FAILURE;
 		}
 
 		err = pthread_create(&consommateur, NULL, &affiche_hash, (void*)NULL);
-		if(err!=0)
+		if(err!=0) // cas où pthread_create a planté
 		{
 			printf("Erreur pthread_create 2\n");
 			return EXIT_FAILURE;
