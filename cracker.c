@@ -6,10 +6,11 @@
 		- PISVIN Arthur
 	Version: 19-04-19 - Petites corrections et commentaires de Merlin
 
-	Commandes à indiquer dans le compilateur:
+	Commandes à indiquer dans le shell:
 		- cd ~/Documents/LSINF1252-PasswordCracker-Gr118-2019
 		- gcc -o cracker cracker.c
 		- ./cracker arg1 arg2 arg3
+		- echo -n monString | sha256sum
 
 	Commandes git:
 		- git status
@@ -124,6 +125,7 @@ void *lectureFichier(void * fichier)
 	}
 
 	int r = read(fd, ptr,32);
+
 	if(r==-1)
 	{
 		printf("Erreur de lecture dans lectureFichier\n");
