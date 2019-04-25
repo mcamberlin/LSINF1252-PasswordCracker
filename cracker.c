@@ -4,11 +4,11 @@
 	Auteurs:
 		- CAMBERLIN Merlin
 		- PISVIN Arthur
-	Version: 23-04-19 
+	Version: 25-04-19 
 
 	Commandes à indiquer dans le shell:
 		- cd ~/Documents/LSINF1252-PasswordCracker-Gr118-2019
-		- gcc -o cracker cracker.c
+		- gcc -o cracker cracker.c -lphtread
 		- ./cracker arg1 arg2 arg3
 		- echo -n monString | sha256sum
 
@@ -77,7 +77,7 @@ hash** tab_hash;
 	@post - affiche le hash
 */
 void* affiche_hash()
-{
+{	printf("Le consommateur est en cours d'exécution\n");
 	while(!fin_de_lecture)
 	{
 		sem_wait(&full_hash);
@@ -105,6 +105,7 @@ void* affiche_hash()
 		pthread_mutex_unlock(&mutex_hash);
 		sem_post(&empty_hash);
 	}
+	printf("Le consommateur a fini son exécution\n");
 	return NULL;
 }
 
@@ -120,6 +121,7 @@ void* affiche_hash()
 */
 void *lectureFichier(void * nomFichier)
 {
+	//1. ouvrir le fichier
 	int fd = open((char*)nomFichier, O_RDONLY);
 	if(fd ==-1)
 	{
@@ -127,7 +129,8 @@ void *lectureFichier(void * nomFichier)
 		return NULL;
 	}
 
-	hash* hash_tmp = (hash*) malloc(sizeof(hash));
+	//2. lire le fichier
+	hash* hash_tmp = (hash*) malloc(sizeof(hash)); // réserver de la mémoire pour mettre les hashs lus au fur et à mesure
 	if(hash_tmp==NULL)
 	{
 		printf("Erreur malloc allocation mémoire ptr dans lectureFichier\n");
@@ -139,18 +142,19 @@ void *lectureFichier(void * nomFichier)
 	{
 		return NULL;
 	}
-	int i;
+
 	while(!fin_de_lecture) //tant qu'on est pas au bout du fichier
 	{
-
-		//Début section critique
 
 		// Chercher de la place dans le tableau pour ajouter
 		int place_trouvee = 1;
 		hash* monHash;
-
+		
+		printf("Début section critique\n");
+		//Début section critique
 		sem_wait(&empty_hash);
 		pthread_mutex_lock(&mutex_hash);
+		
 		for(int i=0; i<NSlot  && place_trouvee; i++)
 		{
 			if(*(tab_hash+i)==NULL) //si la case est vide
@@ -176,8 +180,6 @@ void *lectureFichier(void * nomFichier)
 		sem_post(&full_hash);
 		
 		
-//printf("hash n° %d : %s \n\n",i,hash_tmp->hash);
-		i++;
 		r = read(fd, hash_tmp, 256);
 		if(r<32)
 		{
