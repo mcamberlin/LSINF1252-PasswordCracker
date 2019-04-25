@@ -4,7 +4,7 @@
 	Auteurs:
 		- CAMBERLIN Merlin
 		- PISVIN Arthur
-	Version: 19-04-19 - Petites corrections et commentaires de Merlin
+	Version: 23-04-19 
 
 	Commandes à indiquer dans le shell:
 		- cd ~/Documents/LSINF1252-PasswordCracker-Gr118-2019
@@ -37,6 +37,9 @@
 #include <semaphore.h> //pour semaphore
 #include <pthread.h>  //pour les threads 
 
+#include "sha256.h"
+#include "reverse.h"
+
 
 /*--------------------------------------------------------------*/
 
@@ -47,7 +50,7 @@ char arg_o[] = "-o";
 
 //Valeurs par défaut
 int nbreThreadsCalcul = 1;
-int N = 2; 			// Le nombre de slot du buffer
+int NSlot = 2; 			// Le nombre de slot du buffer
 int critereVoyelles = 1;	//true
 int sortieStandard = 1;		//true
 int nbreFichiersEntree = 0;
@@ -67,6 +70,8 @@ typedef struct hash{
 //Déclaration d'un tableau de structure de hash
 hash** tab_hash;
 
+/*--------------------------------------------------------------*/
+
 /** La fonction affiche_hash affiche le hash
 	@pre - 
 	@post - affiche le hash
@@ -77,17 +82,22 @@ void* affiche_hash()
 	{
 		sem_wait(&full_hash);
 		pthread_mutex_lock(&mutex_hash);
+		
 		//début section critique
 		for(int i=0; i<2*nbreThreadsCalcul; i++)
 		{
 			if(*(tab_hash+i)!=NULL) //si la case est remplie
 			{
 				printf("le hash affiché grace à affiche_hash est %s\n",(char*) ((*(tab_hash+i))->hash));
+				free(*(tab_hash+i));
+				printf("est ce free ? \n");
+				// free a insérer
 				*(tab_hash+i)=NULL;
+				printf("nique ta mere\n");
 			}
 		}
 
-		printf("Dodo affaiche\n");
+		printf("Dodo affiche\n");
 		sleep(2);
 		printf("Réveil\n");
 
@@ -101,85 +111,85 @@ void* affiche_hash()
 
 /*-------------------Lecture de fichier ----------------------------*/
 
-/** La fonction lectureFichier a comme rôle de lire par 32 bytes le fichier "fichier" et de remplir dans tab_hash 
-	@pre - fichier = pointeur vers le fichier à lire
-	@post   - return 0 si tout est ok
-		- return -1 si on peut pas ouvrir ou lire le fichier
-		- return -2 si erreur malloc
+/** La fonction lectureFichier est la fonction qui a comme objectif de lire les fichiers binaires pour en extraire les hashs. Il s'agit du producteur.
+	@pre - nomFichier = pointeur vers le nom du fichier binaire avec l'extension .bin
+	@post - rempli tab_hash au fur et à mesure de la lecture
+		- retourne NULL en cas d'erreur
+		- retourne le pointeur vers le dernier hash ajouté dans tab_hash
+
 */
-void *lectureFichier(void * fichier)
+void *lectureFichier(void * nomFichier)
 {
-	int fd = open((char*)fichier, O_RDONLY);
+	int fd = open((char*)nomFichier, O_RDONLY);
 	if(fd ==-1)
 	{
 		printf("Erreur d'ouverture dans lectureFichier\n");
-		return -1;
+		return NULL;
 	}
 
-	hash* ptr = (hash*) malloc(32);
-	if(ptr==NULL)
+	hash* hash_tmp = (hash*) malloc(sizeof(hash));
+	if(hash_tmp==NULL)
 	{
 		printf("Erreur malloc allocation mémoire ptr dans lectureFichier\n");
 		close(fd);
-		return -2;
+		return NULL;
 	}
-
-	int r = read(fd, ptr,32);
-
+	int r = read(fd, hash_tmp, 256);
 	if(r==-1)
 	{
-		printf("Erreur de lecture dans lectureFichier\n");
-		free(ptr);
-		close(fd);
-		return -1;
+		return NULL;
 	}
-
+	int i;
 	while(!fin_de_lecture) //tant qu'on est pas au bout du fichier
 	{
-		sem_wait(&empty_hash);
-		pthread_mutex_lock(&mutex_hash);
 
 		//Début section critique
 
 		// Chercher de la place dans le tableau pour ajouter
 		int place_trouvee = 1;
-		for(int i=0; i<N  && place_trouvee; i++)
+		hash* monHash;
+
+		sem_wait(&empty_hash);
+		pthread_mutex_lock(&mutex_hash);
+		for(int i=0; i<NSlot  && place_trouvee; i++)
 		{
 			if(*(tab_hash+i)==NULL) //si la case est vide
 			{
-				hash* ptrhash = (hash*) malloc(sizeof(hash));
-				if(ptrhash == NULL)
+				hash* monHash = (hash*) malloc(sizeof(hash));
+				if(monHash == NULL)
 				{
-					printf("Erreur malloc allocation mémoire ptrhash dans lectureFichier\n");
+					printf("Erreur malloc allocation mémoire monHash dans lectureFichier\n");
 					close(fd);
-					free(ptr);
-					return -2;
+					free(hash_tmp);
+					return NULL;
 				}
-				memcpy( ptrhash, ptr, 32);
-				*(tab_hash+i)=ptrhash;
-				printf("Le hash placé dans tab_hash est %s", (char*) ((*(tab_hash+i))->hash));
+				memcpy( monHash, hash_tmp, 32);
+				*(tab_hash+i)=monHash;
+				printf("Le hash placé dans tab_hash est %s\n", (char*) ((*(tab_hash+i))->hash));
 				place_trouvee=0;
 			}
 		}
-
-		printf("Dodo lectureFichier\n");
-		sleep(1);
-		printf("Réveil\n");
-
+		
+		printf("Fin section critique\n");
 		// Fin section critique
 		pthread_mutex_unlock(&mutex_hash);
 		sem_post(&full_hash);
-
-		//lecture du hash suivant
-		r = read(fd, ptr, 32);
+		
+		
+//printf("hash n° %d : %s \n\n",i,hash_tmp->hash);
+		i++;
+		r = read(fd, hash_tmp, 256);
 		if(r<32)
 		{
 			fin_de_lecture=1;
 		}
 	}
-	free(ptr);
+		
+	free(hash_tmp);
 	close(fd);
-	return 0;
+	printf("lectureFichier terminé avec succès\n");
+	return EXIT_SUCCESS;
+
 }
 
 /*--------------------------------------------------------------*/
@@ -203,7 +213,7 @@ int main(int argc, char *argv[]) {
 		{
 			nbreThreadsCalcul = atoi(argv[i+1]); // conversion du tableau de caractères en int
 			i+=1;
-			N = nbreThreadsCalcul*2;
+			NSlot = nbreThreadsCalcul*2;
 			printf("-t spécifié : nombre de threads de calcul = %d ;\n",nbreThreadsCalcul);
 		}
 		if (strstr(argv[i],arg_c) != NULL) // cas où argument -c spécifié
@@ -218,7 +228,6 @@ int main(int argc, char *argv[]) {
 			char* fichierSortie = (char*) malloc(sizeof(argv[i+1]));
 			if(fichierSortie == NULL) // cas où malloc a planté
 			{
-				free(fichierSortie);
 				printf("Erreur malloc cas où argument -o spécifié");
 				return EXIT_FAILURE;
 			}
@@ -238,15 +247,15 @@ int main(int argc, char *argv[]) {
 	//Initialisation du mutex et des sémaphores
 	pthread_mutex_init(&mutex_hash, NULL);
 	
-	int err = sem_init(&empty_hash, 0,N);
-	if(err == 0)
+	int err = sem_init(&empty_hash, 0,NSlot);
+	if(err != 0)// cas où sem_init a planté 
 	{
 		printf("Erreur sem_init du sémaphore empty_hash\n");
 		return EXIT_FAILURE;
 	}
 
 	err = sem_init(&full_hash, 0, 0);
-	if(err == 0)
+	if(err != 0) // cas où sem_init a planté 
 	{
 		printf("Erreur sem_init du sémaphore full_hash\n");
 		return EXIT_FAILURE;
@@ -254,48 +263,53 @@ int main(int argc, char *argv[]) {
 
 
 	//Création du tableau contenant les hash
-	tab_hash = (struct hash**) malloc( N*sizeof(hash*));	// !!! tab_hash est un tableau d'adresses et pas de hash
+	tab_hash = (struct hash**) malloc( NSlot*sizeof(hash*));	// !!! tab_hash est un tableau d'adresses et pas de hash
 	if(tab_hash==NULL)
 	{
 		printf("Erreur malloc allocation mémoire pour tab_hash\n");
-		free(tab_hash);
 		return EXIT_FAILURE;
 	}
 
-	//Initialisation des cellules du tableaux d'adresse à zéro
-	for(int i=0; i<N; i++)
+	//Initialisation des cellules du tableaux d'adresse à NULL pour savoir vérifier si une case est NULL.
+	for(int i=0; i<NSlot; i++)
 	{
 		*(tab_hash+i)=NULL;
 	}
 
 	//Malloc car utilisé par d'autre thread
-	char* fichier = (char*) malloc(sizeof(argv[1])); // Me - le fichier d'entree ne se situe pas nécessairement à la premiere place du tableau argv
-	strcpy(fichier,argv[1]);
+	char* nomFichier = (char*) malloc(sizeof(argv[1])); // Me - le fichier d'entree ne se situe pas nécessairement à la premiere place du tableau argv
+	if(nomFichier==NULL)
+	{
+		printf("erreur malloc nomFichier\n");
+		return EXIT_FAILURE;
+	}
+	strcpy(nomFichier,argv[1]);
 
 
 	//Initialisation des threads
 	pthread_t producteur;
 	pthread_t consommateur;
 
-	
-	// Boucle pour la creation de plusieurs threads pour la lecture
-	for(int i=0; i<1; i++)
+	err = pthread_create(&producteur, NULL, &lectureFichier, (void*) nomFichier);
+	if(err !=0) // cas où pthread_create a planté
 	{
-		err = pthread_create(&producteur, NULL, &lectureFichier, (void*) fichier);
-		if(err !=0) // cas où pthread_create a planté
-		{
-			printf("Erreur pthread_create 1\n");
-			return EXIT_FAILURE;
-		}
+		printf("Erreur pthread_create producteur\n");
+		return EXIT_FAILURE;
+	}
 
+	
+	// Lancement des threads de calculs
+	for(int i=0; i<nbreThreadsCalcul;i++)
+	{
 		err = pthread_create(&consommateur, NULL, &affiche_hash, (void*)NULL);
 		if(err!=0) // cas où pthread_create a planté
 		{
-			printf("Erreur pthread_create 2\n");
+			printf("Erreur pthread_create consommateur\n");
 			return EXIT_FAILURE;
 		}
 	}
 
+	// Boucle pour la creation de plusieurs threads pour la lecture
 	for(int i=0; i<1; i++)
 	{
 		printf("join producteur\n");
