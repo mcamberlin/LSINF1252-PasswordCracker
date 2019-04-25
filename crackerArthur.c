@@ -77,7 +77,7 @@ void* affiche_hash()
 {
 	while(!fin_de_lecture)
 	{
-		printf("avant section critique affiche_hash");
+		printf("avant section critique affiche_hash\n");
 		sem_wait(&full_hash);
 		pthread_mutex_lock(&mutex_hash);
 		//début section critique
@@ -85,7 +85,16 @@ void* affiche_hash()
 		{
 			if(*(tab_hash+i)!=NULL) //si la case est remplie
 			{
-				printf("le hash affiché grace à affiche_hash est %s\n",(char*) ((*(tab_hash+i))->hash));
+				char* mdp;
+				printf("début reversehash\n");
+				if( !(reversehash( (uint8_t*) (*(tab_hash+i))->hash, mdp, 5)))
+				{
+					printf("pas de mot de passe trouvé pour ce hash : %s\n", (char*) (*(tab_hash+i))->hash);
+				}
+				else
+				{
+					printf("le hash affiché grace à affiche_hash est %s\n",mdp);
+				}
 				*(tab_hash+i)=NULL;
 			}
 		}
@@ -177,7 +186,7 @@ void *lectureFichier(void * fichier)
 
 		//lecture du hash suivant
 		r = read(fd, ptr, sizeof(hash));
-		if(r<32)
+		if(r<sizeof(hash))
 		{
 			pthread_mutex_lock(&mutex_hash);
 			printf("le nombre de bytes restant est %d\n", r);
@@ -242,6 +251,9 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	printf("\n%%%%%%%%%%%%%%%%%%%%%%%%\n");
+
+
 
 /* 2e étape :  lecture des fichiers d'entree */
 
@@ -285,20 +297,20 @@ int main(int argc, char *argv[]) {
 
 	//Initialisation des threads
 	pthread_t producteur;
-	pthread_t consommateur;
+	pthread_t consommateur[nbreThreadsCalcul];
 
-	
-	// Boucle pour la creation de plusieurs threads pour la lecture
-	for(int i=0; i<1; i++)
+	err = pthread_create(&producteur, NULL, &lectureFichier, (void*) fichier);
+	if(err !=0) // cas où pthread_create a planté
 	{
-		err = pthread_create(&producteur, NULL, &lectureFichier, (void*) fichier);
-		if(err !=0) // cas où pthread_create a planté
-		{
-			printf("Erreur pthread_create 1\n");
-			return EXIT_FAILURE;
-		}
+		printf("Erreur pthread_create 1\n");
+		return EXIT_FAILURE;
+	}
 
-		err = pthread_create(&consommateur, NULL, &affiche_hash, (void*)NULL);
+
+	// Boucle pour la creation de plusieurs threads pour reversehash
+	for(int i=0; i<nbreThreadsCalcul; i++)
+	{
+		err = pthread_create(&consommateur[i], NULL, &affiche_hash, (void*)NULL);
 		if(err!=0) // cas où pthread_create a planté
 		{
 			printf("Erreur pthread_create 2\n");
@@ -306,10 +318,13 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+
+	pthread_join(producteur,NULL);
+
+
 	for(int i=0; i<1; i++)
 	{
-		pthread_join(producteur,NULL);
-		pthread_join(consommateur,NULL);
+		pthread_join(consommateur[i],NULL);
 	}
 
 	free(tab_hash);
