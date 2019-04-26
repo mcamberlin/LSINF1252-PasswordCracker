@@ -14,6 +14,7 @@ static bool __reversehash(const uint8_t *hash, char *tmp, unsigned int depth,
 	unsigned char c;
 
 	for (c = 'a'; c <= 'z'; c++) {
+
 		tmp[idx] = c;
 		tmp[idx+1] = 0;
 

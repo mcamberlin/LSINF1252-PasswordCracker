@@ -77,6 +77,9 @@ void* affiche_hash()
 {
 	while(!fin_de_lecture)
 	{
+		char* mdp;
+		uint8_t* hash;
+
 		printf("avant section critique affiche_hash\n");
 		sem_wait(&full_hash);
 		pthread_mutex_lock(&mutex_hash);
@@ -85,16 +88,7 @@ void* affiche_hash()
 		{
 			if(*(tab_hash+i)!=NULL) //si la case est remplie
 			{
-				char* mdp;
-				printf("début reversehash\n");
-				if( !(reversehash( (uint8_t*) (*(tab_hash+i))->hash, mdp, 5)))
-				{
-					printf("pas de mot de passe trouvé pour ce hash : %s\n", (char*) (*(tab_hash+i))->hash);
-				}
-				else
-				{
-					printf("le hash affiché grace à affiche_hash est %s\n",mdp);
-				}
+				hash = (uint8_t*) (*(tab_hash+i))->hash;
 				*(tab_hash+i)=NULL;
 			}
 		}
@@ -103,10 +97,19 @@ void* affiche_hash()
 		pthread_mutex_unlock(&mutex_hash);
 		sem_post(&empty_hash);
 
+		printf("début reversehash\n");
+		if( reversehash(hash, mdp, 5) )
+		{
+			printf("le hash affiché grace à affiche_hash est %s\n", mdp);
+		}
+		else
+		{
+			printf("pas de mot de passe trouvé pour ce hash : %s\n", mdp);
+		}
 
-		printf("Dodo affiche\n");
+//		printf("Dodo affiche\n");
 //		sleep(2);
-		printf("Réveil\n");
+//		printf("Réveil\n");
 	}
 	printf("fin affhiche_hash");
 	return EXIT_SUCCESS;
@@ -176,9 +179,9 @@ void *lectureFichier(void * fichier)
 			}
 		}
 
-		printf("Dodo lectureFichier\n");
+//		printf("Dodo lectureFichier\n");
 //		sleep(1);
-		printf("Réveil\n");
+//		printf("Réveil\n");
 
 		// Fin section critique
 		pthread_mutex_unlock(&mutex_hash);
