@@ -4,7 +4,7 @@
 	Auteurs:
 		- CAMBERLIN Merlin
 		- PISVIN Arthur
-	Version: 19-04-19 - Petites corrections et commentaires de Merlin
+	Version: 25-04-19 - Debugging crackerArthur.c
 
 	Commandes à indiquer dans le shell:
 		- cd ~/Documents/LSINF1252-PasswordCracker-Gr118-2019
@@ -37,6 +37,8 @@
 #include <semaphore.h> //pour semaphore
 #include <pthread.h>  //pour les threads 
 
+#include "sha256.h"
+#include "reverse.h"
 
 /*--------------------------------------------------------------*/
 
@@ -75,6 +77,10 @@ void* affiche_hash()
 {
 	while(!fin_de_lecture)
 	{
+		char* mdp;
+		uint8_t* hash;
+
+		printf("avant section critique affiche_hash\n");
 		sem_wait(&full_hash);
 		pthread_mutex_lock(&mutex_hash);
 		//début section critique
@@ -82,20 +88,31 @@ void* affiche_hash()
 		{
 			if(*(tab_hash+i)!=NULL) //si la case est remplie
 			{
-				printf("le hash affiché grace à affiche_hash est %s\n",(char*) ((*(tab_hash+i))->hash));
+				hash = (uint8_t*) (*(tab_hash+i))->hash;
 				*(tab_hash+i)=NULL;
 			}
 		}
 
-		printf("Dodo affiche\n");
-		sleep(2);
-		printf("Réveil\n");
-
 
 		pthread_mutex_unlock(&mutex_hash);
 		sem_post(&empty_hash);
+
+		printf("début reversehash\n");
+		if( reversehash(hash, mdp, 5) )
+		{
+			printf("le hash affiché grace à affiche_hash est %s\n", mdp);
+		}
+		else
+		{
+			printf("pas de mot de passe trouvé pour ce hash : %s\n", mdp);
+		}
+
+//		printf("Dodo affiche\n");
+//		sleep(2);
+//		printf("Réveil\n");
 	}
-	return NULL;
+	printf("fin affhiche_hash");
+	return EXIT_SUCCESS;
 }
 
 
@@ -113,25 +130,25 @@ void *lectureFichier(void * fichier)
 	if(fd ==-1)
 	{
 		printf("Erreur d'ouverture dans lectureFichier\n");
-		return -1;
+		return NULL;
 	}
 
-	hash* ptr = (hash*) malloc(32);
+	hash* ptr = (hash*) malloc(sizeof(hash));
 	if(ptr==NULL)
 	{
 		printf("Erreur malloc allocation mémoire ptr dans lectureFichier\n");
 		close(fd);
-		return -2;
+		return NULL;
 	}
 
-	int r = read(fd, ptr,256);
+	int r = read(fd, ptr,sizeof(hash));
 
 	if(r==-1)
 	{
 		printf("Erreur de lecture dans lectureFichier\n");
 		free(ptr);
 		close(fd);
-		return -1;
+		return NULL;
 	}
 
 	while(!fin_de_lecture) //tant qu'on est pas au bout du fichier
@@ -153,34 +170,38 @@ void *lectureFichier(void * fichier)
 					printf("Erreur malloc allocation mémoire ptrhash dans lectureFichier\n");
 					close(fd);
 					free(ptr);
-					return -2;
+					return NULL;
 				}
-				memcpy( ptrhash, ptr, 32);
+				memcpy(ptrhash, ptr, sizeof(hash));
 				*(tab_hash+i)=ptrhash;
-				printf("Le hash placé dans tab_hash est %s", (char*) ((*(tab_hash+i))->hash));
+				printf("Le hash placé dans tab_hash est %s\n", (char*) ((*(tab_hash+i))->hash));
 				place_trouvee=0;
 			}
 		}
 
-		printf("Dodo lectureFichier\n");
-		sleep(1);
-		printf("Réveil\n");
+//		printf("Dodo lectureFichier\n");
+//		sleep(1);
+//		printf("Réveil\n");
 
 		// Fin section critique
 		pthread_mutex_unlock(&mutex_hash);
 		sem_post(&full_hash);
 
 		//lecture du hash suivant
-		r = read(fd, ptr, 256);
-		if(r<32)
+		r = read(fd, ptr, sizeof(hash));
+		if(r<sizeof(hash))
 		{
+			pthread_mutex_lock(&mutex_hash);
+			printf("le nombre de bytes restant est %d\n", r);
 			fin_de_lecture=1;
+			pthread_mutex_unlock(&mutex_hash);
 		}
 	}
-	printf("fin de lecture");
-	free(ptr);
+	printf("fin boucle lecture\n");
+//	free(ptr);
 	close(fd);
-	return 0;
+	printf("fin lecture\n");
+	return EXIT_SUCCESS;
 }
 
 /*--------------------------------------------------------------*/
@@ -233,6 +254,9 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	printf("\n%%%%%%%%%%%%%%%%%%%%%%%%\n");
+
+
 
 /* 2e étape :  lecture des fichiers d'entree */
 
@@ -276,20 +300,20 @@ int main(int argc, char *argv[]) {
 
 	//Initialisation des threads
 	pthread_t producteur;
-	pthread_t consommateur;
+	pthread_t consommateur[nbreThreadsCalcul];
 
-	
-	// Boucle pour la creation de plusieurs threads pour la lecture
-	for(int i=0; i<1; i++)
+	err = pthread_create(&producteur, NULL, &lectureFichier, (void*) fichier);
+	if(err !=0) // cas où pthread_create a planté
 	{
-		err = pthread_create(&producteur, NULL, &lectureFichier, (void*) fichier);
-		if(err !=0) // cas où pthread_create a planté
-		{
-			printf("Erreur pthread_create 1\n");
-			return EXIT_FAILURE;
-		}
+		printf("Erreur pthread_create 1\n");
+		return EXIT_FAILURE;
+	}
 
-		err = pthread_create(&consommateur, NULL, &affiche_hash, (void*)NULL);
+
+	// Boucle pour la creation de plusieurs threads pour reversehash
+	for(int i=0; i<nbreThreadsCalcul; i++)
+	{
+		err = pthread_create(&consommateur[i], NULL, &affiche_hash, (void*)NULL);
 		if(err!=0) // cas où pthread_create a planté
 		{
 			printf("Erreur pthread_create 2\n");
@@ -297,13 +321,16 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+
+	pthread_join(producteur,NULL);
+
+
 	for(int i=0; i<1; i++)
 	{
-		printf("join producteur\n");
-		pthread_join(producteur,NULL);
-		printf("join consommateur\n");
-		pthread_join(consommateur,NULL);
+		pthread_join(consommateur[i],NULL);
 	}
+
+	free(tab_hash);
 
 	/* 3e étape : les threads de calculs de reverse
 	*/
