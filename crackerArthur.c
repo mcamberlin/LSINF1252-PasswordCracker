@@ -4,11 +4,11 @@
 	Auteurs:
 		- CAMBERLIN Merlin
 		- PISVIN Arthur
-	Version: 25-04-19 - Debugging crackerArthur.c
+	Version: 26-04-19 - Modifications interprétations commandes + changement message d'erreurs + maj des commentaires
 
 	Commandes à indiquer dans le shell:
 		- cd ~/Documents/LSINF1252-PasswordCracker-Gr118-2019
-		- gcc -o cracker cracker.c
+		- gcc -o cracker cracker.c sha256.c -lpthread
 		- ./cracker arg1 arg2 arg3
 		- echo -n monString | sha256sum
 
@@ -23,6 +23,7 @@
 		- A chaque malloc, ne pas oublier de free en cas d'erreur
 		- A chaque initialisation, tester la valeur de retour pour s'assurer du bon fonctionnement
 		- Ajuster la version et le commentaire avec
+		- fprintf(stderr, "Erreur malloc cas où argument -o spécifié %d\n", errno);
 */
 
 
@@ -55,6 +56,9 @@ int sortieStandard = 1;		//true
 int nbreFichiersEntree = 0;
 int fin_de_lecture = 0;       	//false
 
+// Déclaration d'un tableau de pointeurs contenant les noms des fichiers d'entrée
+char fichiersEntree**; 
+
 //Initialisation du mutex et des 2 sémaphores 
 pthread_mutex_t mutex_hash;
 sem_t empty_hash; 
@@ -84,6 +88,7 @@ void* affiche_hash()
 		sem_wait(&full_hash);
 		pthread_mutex_lock(&mutex_hash);
 		//début section critique
+
 		for(int i=0; i<2*nbreThreadsCalcul; i++)
 		{
 			if(*(tab_hash+i)!=NULL) //si la case est remplie
@@ -107,10 +112,11 @@ void* affiche_hash()
 			printf("pas de mot de passe trouvé pour ce hash : %s\n", mdp);
 		}
 
-//		printf("Dodo affiche\n");
-//		sleep(2);
-//		printf("Réveil\n");
-	}
+
+/*		printf("Dodo affiche\n");
+		sleep(2);
+		printf("Réveil\n");
+*/	}
 	printf("fin affhiche_hash");
 	return EXIT_SUCCESS;
 }
@@ -218,62 +224,65 @@ int main(int argc, char *argv[]) {
 /* 1e étape :  lecture des arguments de la commande de l'exécutable [FAIT]*/
 
 	
-	for (int i=1; i < argc; i++) // hypothèse selon laquelle la commande est exactement ./cracker [-t NTHREADS] [-c] [-o FICHIEROUT] FICHIER1 [FICHIER2 ... FICHIERN]
+/* 1e étape :  lecture des arguments de la commande de l'exécutable [FAIT]*/
+	printf("\n \t\t\t Interprétation des commandes \n");
+	int opt;
+	int index = 1; // index des fichiers binaires
+	fprintf(stderr, "Usage: %s [-t NTHREADS] [-c] [-o FICHIEROUT] FICHIER1 [FICHIER2 ... FICHIERN]\n",argv[0]);
+	while (index<argc) // Tant qu'il reste des options à vérifier
 	{
-
-		if( strstr(argv[i],arg_t) != NULL) // cas où argument -t spécifié
+		opt = getopt(argc, argv, "t:o:c");
+		switch (opt) 
 		{
-			nbreThreadsCalcul = atoi(argv[i+1]); // conversion du tableau de caractères en int
-			i+=1;
-			N = nbreThreadsCalcul*2;
-			printf("-t spécifié : nombre de threads de calcul = %d ;\n",nbreThreadsCalcul);
-		}
-		if (strstr(argv[i],arg_c) != NULL) // cas où argument -c spécifié
-		{
-			critereVoyelles = 0;
-			printf("-c spécifié : critère de sélection = occurence des consonnes ;\n");
-
-		}
-		if (strstr(argv[i],arg_o) != NULL)// cas où argument -o spécifié
-		{
-			sortieStandard = 0;
-			char* fichierSortie = (char*) malloc(sizeof(argv[i+1]));
-			if(fichierSortie == NULL) // cas où malloc a planté
-			{
-				free(fichierSortie);
-				printf("Erreur malloc cas où argument -o spécifié");
-				return EXIT_FAILURE;
-			}
-			printf("-o spécifié : %s\n",argv[i+1]);
-			i+=1;
-		}
-		else
-		{
-			nbreFichiersEntree+=1;
-			printf("- fichier(s) binaires d'entree = %s ;\n",argv[i]);
+			case 't':
+				nbreThreadsCalcul = atoi(optarg); // conversion du tableau de caractères en int
+				N = nbreThreadsCalcul*2;
+				printf("-t spécifié : nombre de threads de calcul = %d ;\n",nbreThreadsCalcul);
+				index+=2;
+				break;
+			case 'c':
+				critereVoyelles = 0;
+				printf("-c spécifié : critère de sélection = occurence des consonnes ;\n");
+				index++;
+				break;
+			case 'o':
+				sortieStandard = 0;
+				char* fichierSortie = optarg;				
+				printf("-o spécifié : %s\n",fichierSortie);
+				index+=2;
+				break;
+			default: 
+				nbreFichiersEntree = argc - index;
+				fichiersEntree= (char**) malloc(nbreFichiersEntree * sizeof(argv[index]));
+				printf("-%d fichier(s) binaire(s) spécifié(s) : ",nbreFichiersEntree);
+				for(int i=0;index<=(argc-1);index++,i++)
+				{
+					*(fichiersEntree+i)=argv[index];
+					printf("%s ",argv[index]);
+				}
+				printf("\n");
+				break;		        
 		}
 	}
+	printf("\t\t\t Fin de l'interprétation des commandes \n\n");
 
-	printf("\n%%%%%%%%%%%%%%%%%%%%%%%%\n");
-
-
-
+	
 /* 2e étape :  lecture des fichiers d'entree */
 
 	//Initialisation du mutex et des sémaphores
 	pthread_mutex_init(&mutex_hash, NULL);
 	
 	int err = sem_init(&empty_hash, 0,N);
-	if(err != 0)
+	if(err != 0)// cas où sem_init a planté 
 	{
-		printf("Erreur sem_init du sémaphore empty_hash\n");
+		fprintf(stderr, "Erreur sem_init du sémaphore empty_hash \n");
 		return EXIT_FAILURE;
 	}
 
 	err = sem_init(&full_hash, 0, 0);
-	if(err != 0)
+	if(err != 0)// cas où sem_init a planté 
 	{
-		printf("Erreur sem_init du sémaphore full_hash\n");
+		fprintf(stderr, "Erreur sem_init du sémaphore full_hash\n");
 		return EXIT_FAILURE;
 	}
 
@@ -282,19 +291,26 @@ int main(int argc, char *argv[]) {
 	tab_hash = (struct hash**) malloc( N*sizeof(hash*));	// !!! tab_hash est un tableau d'adresses et pas de hash
 	if(tab_hash==NULL)
 	{
-		printf("Erreur malloc allocation mémoire pour tab_hash\n");
-		free(tab_hash);
+		fprintf(stderr, "Erreur malloc allocation mémoire pour tab_hash\n");
+		//free(tab_hash); // Me - Si il plante il faut le free malgré tout ? non il me semble ;-)
 		return EXIT_FAILURE;
 	}
 
-	//Initialisation des cellules du tableaux d'adresse à zéro
+	//Initialisation des cellules du tableaux d'adresse à NULL pour savoir vérifier si une case est NULL.
 	for(int i=0; i<N; i++)
 	{
 		*(tab_hash+i)=NULL;
 	}
 
-	//Malloc car utilisé par d'autre thread
+	/* Me - Il faudra prendre en compte par la suite que il peut y avoir plusieurs fichiers d'entrée dont chaque pointeur est stocké dans fichiersEntree */
+	
+	//Malloc car utilisé par d'autres threads
 	char* fichier = (char*) malloc(sizeof(argv[1])); // Me - le fichier d'entree ne se situe pas nécessairement à la premiere place du tableau argv
+	if(fichier==NULL)
+	{
+		fprintf(stderr, "Erreur allocation mémoire pour nomFichier\n");
+		return EXIT_FAILURE;
+	}
 	strcpy(fichier,argv[1]);
 
 
@@ -305,7 +321,7 @@ int main(int argc, char *argv[]) {
 	err = pthread_create(&producteur, NULL, &lectureFichier, (void*) fichier);
 	if(err !=0) // cas où pthread_create a planté
 	{
-		printf("Erreur pthread_create 1\n");
+		fprintf(stderr, "Erreur pthread_create 1\n");
 		return EXIT_FAILURE;
 	}
 
@@ -316,7 +332,7 @@ int main(int argc, char *argv[]) {
 		err = pthread_create(&consommateur[i], NULL, &affiche_hash, (void*)NULL);
 		if(err!=0) // cas où pthread_create a planté
 		{
-			printf("Erreur pthread_create 2\n");
+			fprintf(stderr, "Erreur pthread_create 2\n");
 			return EXIT_FAILURE;
 		}
 	}
@@ -324,9 +340,10 @@ int main(int argc, char *argv[]) {
 
 	pthread_join(producteur,NULL);
 
-
+	// Boucle pour la creation de plusieurs threads pour la lecture
 	for(int i=0; i<1; i++)
 	{
+		// Me - y a pas ca aussi : pthread_join(producteur,NULL); ?
 		pthread_join(consommateur[i],NULL);
 	}
 
