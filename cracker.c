@@ -4,11 +4,11 @@
 	Auteurs:
 		- CAMBERLIN Merlin
 		- PISVIN Arthur
-	Version: 26-04-19 - Modifications interprétations commandes + changement message d'erreurs + maj des commentaires
+	Version: 29-04-19 - Corrections multiples
 
 	Commandes à indiquer dans le shell:
 		- cd ~/Documents/LSINF1252-PasswordCracker-Gr118-2019
-		- gcc -o cracker cracker.c sha256.c -lpthread
+		- gcc cracker.c reverse.c sha256.c -o cracker -lpthread 
 		- ./cracker arg1 arg2 arg3
 		- echo -n monString | sha256sum
 
@@ -26,7 +26,10 @@
 		- fprintf(stderr, "Erreur malloc cas où argument -o spécifié %d\n", errno);
 */
 
+// CONSTANTES
+#define LENPWD 6 // Nbre maximal de caractères des mots de passes originels
 
+// Includes
 #include <stdio.h>  
 #include <stdlib.h>
 #include <string.h> // pour utiliser la fonction strstr() semblable à contains()
@@ -50,7 +53,7 @@ char arg_o[] = "-o";
 
 //Valeurs par défaut
 int nbreThreadsCalcul = 1;
-int N = 2; 			// Le nombre de slot du buffer
+int N = 2*nbreThreadsCalcul;	// Le nombre de slot du buffer
 int critereVoyelles = 1;	//true
 int sortieStandard = 1;		//true
 int nbreFichiersEntree = 0;
@@ -79,22 +82,32 @@ hash** tab_hash;
 */
 void* affiche_hash()
 {
-	while(!fin_de_lecture)
+	int countSemEmpty = N;
+	while(!fin_de_lecture && countSemEmpty>0) 
+	// Tant que la lecture du fichier n'est pas finie ET que le slot n'est pas vide.
 	{
-		char* mdp;
+		char* mdp = (char*) malloc(sizeof(char)*LENPWD);
+		if(mdp == NULL)
+		{
+			fprintf(stderr, "Erreur allocation mémoire mdp dans affiche_hash\n");
+			return (void*) EXIT_FAILURE;
+		}
+		
 		uint8_t* hash;
 
 		printf("avant section critique affiche_hash\n");
 		sem_wait(&full_hash);
 		pthread_mutex_lock(&mutex_hash);
 		//début section critique
-
-		for(int i=0; i<2*nbreThreadsCalcul; i++)
+		int conditionArret = 1; // condition nécessaire pour sortir de la boucle for une fois que le pointeur du slot a ete copié dans hash
+		for(int i=0; i<2*nbreThreadsCalcul && conditionArret; i++)
 		{
 			if(*(tab_hash+i)!=NULL) //si la case est remplie
 			{
 				hash = (uint8_t*) *(tab_hash+i);
+				printf("le hash traité dans reverehash est : %s\n", (*(tab_hash+i))->hash);
 				*(tab_hash+i)=NULL;
+				conditionArret = 0;
 			}
 		}
 
@@ -102,20 +115,19 @@ void* affiche_hash()
 		sem_post(&empty_hash);
 
 		printf("début reversehash\n");
-		if( reversehash(hash, mdp, 5) )
+		if( reversehash(hash, mdp, LENPWD) )
 		{
-			printf("le hash affiché grace à affiche_hash est %s\n", mdp);
+			printf("\nle hash affiché grace à affiche_hash est %s\n", mdp);
 		}
 		else
 		{
-			printf("pas de mot de passe trouvé pour ce hash : %s\n", mdp);
+			printf("\npas de mot de passe trouvé pour ce hash\n ");
 		}
+		free(mdp);
+		sem_getvalue(&empty_hash, &countSemEmpty);
+		printf("le int du sémaphores vaut : %d \n", countSemEmpty);
 
-
-/*		printf("Dodo affiche\n");
-		sleep(2);
-		printf("Réveil\n");
-*/	}
+	}
 	printf("fin affhiche_hash");
 	return EXIT_SUCCESS;
 }
@@ -147,7 +159,6 @@ void *lectureFichier(void * fichier)
 	}
 
 	int r = read(fd, ptr,sizeof(hash));
-
 	if(r==-1)
 	{
 		printf("Erreur de lecture dans lectureFichier\n");
@@ -179,14 +190,11 @@ void *lectureFichier(void * fichier)
 				}
 				memcpy(ptrhash, ptr, sizeof(hash));
 				*(tab_hash+i)=ptrhash;
-				printf("Le hash placé dans tab_hash est %s\n", (char*) ((*(tab_hash+i))->hash));
+				//printf("Le hash placé dans tab_hash est %s\n", (char*) ((*(tab_hash+i))->hash));
+				printf("Le hash placé dans tab_hash est %s\n", (*(tab_hash+i))->hash);
 				place_trouvee=0;
 			}
-		}
-
-//		printf("Dodo lectureFichier\n");
-//		sleep(1);
-//		printf("Réveil\n");
+		};
 
 		// Fin section critique
 		pthread_mutex_unlock(&mutex_hash);
@@ -194,16 +202,16 @@ void *lectureFichier(void * fichier)
 
 		//lecture du hash suivant
 		r = read(fd, ptr, sizeof(hash));
-		if(r<sizeof(hash))
+		if(r==0)
 		{
 			pthread_mutex_lock(&mutex_hash);
 			printf("le nombre de bytes restant est %d\n", r);
 			fin_de_lecture=1;
 			pthread_mutex_unlock(&mutex_hash);
 		}
-	}
+	}	
 	printf("fin boucle lecture\n");
-//	free(ptr);
+	free(ptr);
 	close(fd);
 	printf("fin lecture\n");
 	return EXIT_SUCCESS;
@@ -220,14 +228,12 @@ void *lectureFichier(void * fichier)
 */
 int main(int argc, char *argv[]) {
 
-/* 1e étape :  lecture des arguments de la commande de l'exécutable [FAIT]*/
-
 	
 /* 1e étape :  lecture des arguments de la commande de l'exécutable [FAIT]*/
 	printf("\n \t\t\t Interprétation des commandes \n");
 	int opt;
 	int index = 1; // index des fichiers binaires
-	fprintf(stderr, "Usage: %s [-t NTHREADS] [-c] [-o FICHIEROUT] FICHIER1 [FICHIER2 ... FICHIERN]\n",argv[0]);
+	//fprintf(stderr, "Usage: %s [-t NTHREADS] [-c] [-o FICHIEROUT] FICHIER1 [FICHIER2 ... FICHIERN]\n",argv[0]);
 	while (index<argc) // Tant qu'il reste des options à vérifier
 	{
 		opt = getopt(argc, argv, "t:o:c");
@@ -252,7 +258,7 @@ int main(int argc, char *argv[]) {
 				break;
 			default: 
 				nbreFichiersEntree = argc - index;
-				fichiersEntree= (char**) malloc(nbreFichiersEntree * sizeof(argv[index]));
+				fichiersEntree = (char**) malloc(nbreFichiersEntree * sizeof(argv[index]));
 				printf("-%d fichier(s) binaire(s) spécifié(s) : ",nbreFichiersEntree);
 				for(int i=0;index<=(argc-1);index++,i++)
 				{
@@ -304,13 +310,14 @@ int main(int argc, char *argv[]) {
 	/* Me - Il faudra prendre en compte par la suite que il peut y avoir plusieurs fichiers d'entrée dont chaque pointeur est stocké dans fichiersEntree */
 	
 	//Malloc car utilisé par d'autres threads
+
 	char* fichier = (char*) malloc(sizeof(argv[1])); // Me - le fichier d'entree ne se situe pas nécessairement à la premiere place du tableau argv
 	if(fichier==NULL)
 	{
 		fprintf(stderr, "Erreur allocation mémoire pour nomFichier\n");
 		return EXIT_FAILURE;
 	}
-	strcpy(fichier,argv[1]);
+	strcpy(fichier,argv[1]); // CHANGER POUR PLUSIEURS FICHIERS
 
 
 	//Initialisation des threads
