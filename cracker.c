@@ -57,7 +57,7 @@ int nbreFichiersEntree = 0;
 int fin_de_lecture = 0;       	//false
 
 // Déclaration d'un tableau de pointeurs contenant les noms des fichiers d'entrée
-char fichiersEntree**; 
+char** fichiersEntree; 
 
 //Initialisation du mutex et des 2 sémaphores 
 pthread_mutex_t mutex_hash;
@@ -93,11 +93,10 @@ void* affiche_hash()
 		{
 			if(*(tab_hash+i)!=NULL) //si la case est remplie
 			{
-				hash = (uint8_t*) (*(tab_hash+i))->hash;
+				hash = (uint8_t*) *(tab_hash+i);
 				*(tab_hash+i)=NULL;
 			}
 		}
-
 
 		pthread_mutex_unlock(&mutex_hash);
 		sem_post(&empty_hash);
