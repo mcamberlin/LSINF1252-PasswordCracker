@@ -53,11 +53,12 @@ char arg_o[] = "-o";
 
 //Valeurs par défaut
 int nbreThreadsCalcul = 1;
-int N = 2*nbreThreadsCalcul;	// Le nombre de slot du buffer
+int N = 2;	// Le nombre de slot du buffer
 int critereVoyelles = 1;	//true
 int sortieStandard = 1;		//true
 int nbreFichiersEntree = 0;
 int fin_de_lecture = 0;       	//false
+int nbreSlotHashVide = 2;
 
 // Déclaration d'un tableau de pointeurs contenant les noms des fichiers d'entrée
 char** fichiersEntree; 
@@ -82,8 +83,8 @@ hash** tab_hash;
 */
 void* affiche_hash()
 {
-	int countSemEmpty = N;
-	while(!fin_de_lecture && countSemEmpty>0) 
+	//int countSemEmpty = N;
+	while(!fin_de_lecture || nbreSlotHashVide>0) // && countSemEmpty>0) 
 	// Tant que la lecture du fichier n'est pas finie ET que le slot n'est pas vide.
 	{
 		char* mdp = (char*) malloc(sizeof(char)*LENPWD);
@@ -92,7 +93,7 @@ void* affiche_hash()
 			fprintf(stderr, "Erreur allocation mémoire mdp dans affiche_hash\n");
 			return (void*) EXIT_FAILURE;
 		}
-		
+
 		uint8_t* hash;
 
 		printf("avant section critique affiche_hash\n");
@@ -107,6 +108,7 @@ void* affiche_hash()
 				hash = (uint8_t*) *(tab_hash+i);
 				printf("le hash traité dans reverehash est : %s\n", (*(tab_hash+i))->hash);
 				*(tab_hash+i)=NULL;
+				nbreSlotHashVide++;
 				conditionArret = 0;
 			}
 		}
@@ -124,8 +126,8 @@ void* affiche_hash()
 			printf("\npas de mot de passe trouvé pour ce hash\n ");
 		}
 		free(mdp);
-		sem_getvalue(&empty_hash, &countSemEmpty);
-		printf("le int du sémaphores vaut : %d \n", countSemEmpty);
+		//sem_getvalue(&empty_hash, &countSemEmpty);
+		//printf("le int du sémaphores vaut : %d \n", countSemEmpty);
 
 	}
 	printf("fin affhiche_hash");
@@ -193,6 +195,7 @@ void *lectureFichier(void * fichier)
 				//printf("Le hash placé dans tab_hash est %s\n", (char*) ((*(tab_hash+i))->hash));
 				printf("Le hash placé dans tab_hash est %s\n", (*(tab_hash+i))->hash);
 				place_trouvee=0;
+				nbreSlotHashVide--;
 			}
 		};
 
@@ -242,6 +245,7 @@ int main(int argc, char *argv[]) {
 			case 't':
 				nbreThreadsCalcul = atoi(optarg); // conversion du tableau de caractères en int
 				N = nbreThreadsCalcul*2;
+				nbreSlotHashVide = N;
 				printf("-t spécifié : nombre de threads de calcul = %d ;\n",nbreThreadsCalcul);
 				index+=2;
 				break;
