@@ -1,3 +1,4 @@
+
 /*
 	Fichier cracker.c réprésente le code dans son intégralité
 
@@ -58,7 +59,7 @@ int critereVoyelles = 1;	//true
 int sortieStandard = 1;		//true
 int nbreFichiersEntree = 0;
 int fin_de_lecture = 0;       	//false
-int nbreSlotHashVide = 2;
+int nbreSlotHashRempli = 0;
 
 // Déclaration d'un tableau de pointeurs contenant les noms des fichiers d'entrée
 char** fichiersEntree; 
@@ -84,9 +85,10 @@ hash** tab_hash;
 void* affiche_hash()
 {
 	//int countSemEmpty = N;
-	while(!fin_de_lecture || nbreSlotHashVide>0) // && countSemEmpty>0) 
+	while(!fin_de_lecture || nbreSlotHashRempli)
 	// Tant que la lecture du fichier n'est pas finie ET que le slot n'est pas vide.
 	{
+		printf("nbre de slot vide = %d\n", nbreSlotHashRempli);
 		char* mdp = (char*) malloc(sizeof(char)*LENPWD);
 		if(mdp == NULL)
 		{
@@ -106,9 +108,10 @@ void* affiche_hash()
 			if(*(tab_hash+i)!=NULL) //si la case est remplie
 			{
 				hash = (uint8_t*) *(tab_hash+i);
+				printf("L'adresse dans tab_hash est : %p à l'indice %d (affiche)\n", *(tab_hash+i), i);
 				printf("le hash traité dans reverehash est : %s\n", (*(tab_hash+i))->hash);
 				*(tab_hash+i)=NULL;
-				nbreSlotHashVide++;
+				nbreSlotHashRempli++;
 				conditionArret = 0;
 			}
 		}
@@ -119,7 +122,7 @@ void* affiche_hash()
 		printf("début reversehash\n");
 		if( reversehash(hash, mdp, LENPWD) )
 		{
-			printf("\nle hash affiché grace à affiche_hash est %s\n", mdp);
+			printf("\nle hash affiché grace à affiche_hash est %s\n\n", mdp);
 		}
 		else
 		{
@@ -192,12 +195,12 @@ void *lectureFichier(void * fichier)
 				}
 				memcpy(ptrhash, ptr, sizeof(hash));
 				*(tab_hash+i)=ptrhash;
-				//printf("Le hash placé dans tab_hash est %s\n", (char*) ((*(tab_hash+i))->hash));
-				printf("Le hash placé dans tab_hash est %s\n", (*(tab_hash+i))->hash);
+				printf("L'adresse dans tab_hash est : %p à l'indice %d (lecture)\n", *(tab_hash+i), i);
+				printf("Le hash placé dans tab_hash est %s\n", (*(tab_hash+i))->hash );
 				place_trouvee=0;
-				nbreSlotHashVide--;
+				nbreSlotHashRempli--;
 			}
-		};
+		}
 
 		// Fin section critique
 		pthread_mutex_unlock(&mutex_hash);
@@ -212,8 +215,7 @@ void *lectureFichier(void * fichier)
 			fin_de_lecture=1;
 			pthread_mutex_unlock(&mutex_hash);
 		}
-	}	
-	printf("fin boucle lecture\n");
+	}
 	free(ptr);
 	close(fd);
 	printf("fin lecture\n");
@@ -245,7 +247,7 @@ int main(int argc, char *argv[]) {
 			case 't':
 				nbreThreadsCalcul = atoi(optarg); // conversion du tableau de caractères en int
 				N = nbreThreadsCalcul*2;
-				nbreSlotHashVide = N;
+				nbreSlotHashRempli = N;
 				printf("-t spécifié : nombre de threads de calcul = %d ;\n",nbreThreadsCalcul);
 				index+=2;
 				break;
