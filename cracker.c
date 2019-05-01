@@ -5,7 +5,7 @@
 	Auteurs:
 		- CAMBERLIN Merlin
 		- PISVIN Arthur
-	Version: 01-05-19 - Corrections communications entre threads
+	Version: 01-05-19 - Ajout fonction count_vowels() et count_consonants() + création liste chainée
 
 	Commandes à indiquer dans le shell:
 		- cd ~/Documents/LSINF1252-PasswordCracker-Gr118-2019
@@ -27,8 +27,8 @@
 		- fprintf(stderr, "Erreur malloc cas où argument -o spécifié %d\n", errno);
 */
 
-// CONSTANTES
-#define LENPWD 6 // Nbre maximal de caractères des mots de passes originels
+// CONSTANTES dans le préprocesseurs
+#define LENPWD 6 // Nbre maximal de caractères dans les mots de passes originels
 
 // Includes
 #include <stdio.h>  
@@ -41,20 +41,13 @@
 #include <ctype.h>  //pour isdigit
 #include <semaphore.h> //pour semaphore
 #include <pthread.h>  //pour les threads 
-
 #include "sha256.h"
 #include "reverse.h"
 
-/*--------------------------------------------------------------*/
 
-//Arguments des fonctions
-char arg_t[] = "-t";
-char arg_c[] = "-c";
-char arg_o[] = "-o";
-
-//Valeurs par défaut
+// Valeurs par défaut
 int nbreThreadsCalcul = 1;
-int N = 2;	// Le nombre de slot du buffer
+int N = 2;			// Le nombre de slot du buffer
 int critereVoyelles = 1;	//true
 int sortieStandard = 1;		//true
 int nbreFichiersEntree = 0;
@@ -64,29 +57,187 @@ int nbreSlotHashRempli = 0;
 // Déclaration d'un tableau de pointeurs contenant les noms des fichiers d'entrée
 char** fichiersEntree; 
 
-//Initialisation du mutex et des 2 sémaphores 
+// Initialisation du mutex et des 2 sémaphores pour le producteur-consommateur 
 pthread_mutex_t mutex_hash;
 sem_t empty_hash; 
 sem_t full_hash; 
 
 
-//Déclaration d'une structure représentant un hash  
-typedef struct hash{
+// Déclaration d'une structure représentant un hash  
+typedef struct hash
+{
 	char hash[32]; // 1 hash = 32 bytes et 1char = 1 byte
 }hash;
 
-//Déclaration d'un tableau de structure de hash
+// Déclaration d'un tableau de pointeur de hash
 hash** tab_hash;
 
-/** La fonction affiche_hash affiche le hash
+
+// Constantes
+const char CONSONNES[] = {'b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z'};
+const char VOYELLES[] = {'a','e','i','o','u','y'};
+int occurenceVoyelles=0;
+int occurenceConsonnes=0;
+
+// Déclaration d'une structure représentant un noeud de la simple liste chaînée
+typedef struct node
+{
+    char mdp[LENPWD];
+    struct node *next;
+}node;
+
+// Déclaration d'une la liste simplement chainée
+node** head;
+
+
+/*--------------------------------------------------------------*/
+
+/** La fonction count_consonants() compte le nombre de consommes dans une chaine de caractères
+	@pre - monString = un pointeur vers une chaîne de caractères dont on souhaite compter le nombre de consonnes
+	@post - retourne le nombre de consonnes dans monString
+
+*/
+int count_consonants(char* monString)
+{
+	int nbreConsonnes = 0;
+	int j=0;	
+	for(int i=0;*(monString+i) !='\0';i++) // tant que on a pas vérifié chaque lettre de monString
+	{
+		j=0;
+		while(j<20 && *(monString+i) != CONSONNES[j]) // tant que on a pas comparé avec toutes les consonnes
+		{
+			j++;	
+		}
+		if(*(monString+i) == CONSONNES[j])
+		{
+			nbreConsonnes++;
+		}
+	}
+	return nbreConsonnes;
+}
+
+
+/*--------------------------------------------------------------*/
+
+/** La fonction count_vowels() compte le nombre de voyelles dans une chaine de caractères
+	@pre - monString = un pointeur vers une chaîne de caractères dont on souhaite compter le nombre de voyelles
+	@post - retourne le nombre de voyelles dans monString
+
+*/
+int count_vowels(char* monString)
+{
+	int nbreVoyelles = 0;
+	int j=0;
+	for(int i=0;*(monString+i) != '\0';i++)// tant que on a pas vérifié chaque lettre de monString
+	{
+		j=0;
+		while(j<6 && *(monString+i) != VOYELLES[j]) // tant que on a pas vérifié toutes les voyelles
+		{
+			j++;
+		}
+		if(*(monString+i) == VOYELLES[j])
+		{
+			nbreVoyelles++;
+		}
+	}
+	return nbreVoyelles;
+}
+
+
+/*--------------------------------------------------------------*/
+
+/** La fonction insert() insére dans une simple liste chainée un élément
+	@pre 	- @head = un pointeur vers le premier noeud de la liste chainée. Si @head == NULL, retourne -1
+		- @value = un tableau de caractère représentant le mdp à insérer dans la liste chainée
+	@post 	- 0 si l'insertion dans la liste chaînée s'est réalisée avec succès, -1 sinon
+*/
+int insert(node **head, char val[]) 
+{
+	// Si aucun argument 
+	if(head == NULL) 
+	{
+		fprintf(stderr, "**head non spécifié dans insert() \n");
+		return -1;
+	}
+
+	// Si la liste est vide
+	if(*head == NULL) 
+	{
+		// Ajouter le nouveau élément
+		node* newNode = (node*) malloc(sizeof(node)); 
+		if(newNode == NULL)
+		{
+			fprintf(stderr, "Erreur allocation de mémoire newNode dans le cas d'une liste vide dans insert() \n");
+			return -1;
+		}
+		
+		strcpy(newNode->mdp,val); // copie dans @newNode la chaine de caractères @val 
+		newNode->next = NULL;
+		*head = newNode;
+		return 0;
+	}
+
+	// Si la liste n'est pas vide
+	else
+	{
+		// Insertion en tête de liste
+        	node* newNode = (node*) malloc(sizeof(node)); 
+        	if(newNode == NULL)
+		{
+			fprintf(stderr, "Erreur allocation de mémoire de newNode dans le cas d'une liste NON vide dans insert() \n");
+			return -1;
+		}
+		strcpy(newNode->mdp,val); // copie dans le nouveau noeud la chaine de caractères val 
+        	newNode->next = *head;          
+        	*head = newNode; 
+        	return 0;
+	}    
+}
+
+
+/*--------------------------------------------------------------*/
+
+/** La fonction free() libère la liste chaînée associée à sa tête passée en argument
+	@pre 	- @head = un pointeur vers le pointeur head. Si @head == NULL, retourne -1
+	@post 	- 0 si la suppression de la liste chaînée s'est réalisée avec succès, -1 sinon
+*/
+int freeLinkedList(node **head) 
+{
+	if(head == NULL)
+	{
+		fprintf(stderr, "**head non spécifié dans insert() \n");
+		return -1;
+	}
+
+	if(*head == NULL) // si la liste est vide
+	{
+		return 1;
+	}
+	
+	node* runner = *head;
+	node* previous;
+
+	while(runner !=NULL)
+	{
+		previous = runner;
+		runner = runner->next;		
+		free(previous);	
+	}
+	*head = NULL;
+	return 0;
+}
+
+
+/*--------------------------------------------------------------*/
+
+/** La fonction affiche_hash est le consommateur du producteur-consommateur
 	@pre - 
-	@post - affiche le hash
+	@post - lis les fichiers binaires en entrée, lance reversehash(), ajuste la liste chaînée
 */
 void* affiche_hash()
 {
-	//int countSemEmpty = N;
 	while(!fin_de_lecture || nbreSlotHashRempli)
-	// Tant que la lecture du fichier n'est pas finie ET que le slot n'est pas vide.
+	// Tant que la lecture du fichier n'est pas finie ou que le buffer n'est pas vide.
 	{
 		printf("nbre de slot rempli = %d\n", nbreSlotHashRempli);
 		char* mdp = (char*) malloc(sizeof(char)*LENPWD);
@@ -120,20 +271,85 @@ void* affiche_hash()
 		sem_post(&empty_hash);
 
 		printf("début reversehash\n");
-		if( reversehash(hash, mdp, LENPWD) )
+		if( reversehash(hash, mdp, LENPWD) ) // cas ou reversehash() a trouvé le mdp originel
 		{
 			printf("\nle hash affiché grace à affiche_hash est %s\n\n", mdp);
+			
+			/* ---------------------------------------------- */
+			// COMPARER LE NOMBRE D'OCCURENCES DU MDP AVEC CEUX DANS LA LISTE CHAINEE
+
+			if(critereVoyelles == 1) // cas ou le critère de sélection des mdp sont les voyelles
+			{
+				if(count_vowels(mdp)==occurenceVoyelles) // cas ou le mdp contient le meme nombre de voyelles que les précédents
+				{
+					// Insertion du mdp en tête dans la liste chainée
+					if(insert(head,mdp) ==-1)
+					{
+						return (void*) EXIT_FAILURE;
+					}
+					
+				}
+				if(count_vowels(mdp)>occurenceVoyelles)
+				{
+					occurenceVoyelles = count_vowels(mdp);
+					// 1.Libérer toutes la liste chainée
+					if(freeLinkedList(head) ==-1)
+					{
+						
+						return (void*) EXIT_FAILURE;
+					}
+
+					// Insertion du mdp en tête dans la liste chainée
+					if(insert(head,mdp) ==-1)
+					{
+						return (void*) EXIT_FAILURE;
+					}
+
+				}
+				//if(count_vowels(mdp)<occurenceVoyelles)// cas ou le mdp contient moins de voyelles que les précédents
+				//{ ne pas ajouter le mdp }
+				
+
+			}
+			else // cas ou le critère de sélection des mdp sont les consonnes
+			{
+				if(count_consonants(mdp)==occurenceConsonnes) // cas ou le mdp contient le meme nombre de consonnes que les précédents
+				{
+					// Insertion du mdp en tête dans la liste chainée
+					if(insert(head,mdp) ==-1)
+					{
+						return (void*) EXIT_FAILURE;
+					}
+					
+				}
+				if(count_consonants(mdp)>occurenceVoyelles)
+				{
+					occurenceConsonnes = count_consonants(mdp);
+					// 1.Libérer toutes la liste chainée
+					if(freeLinkedList(head) ==-1)
+					{
+						return (void*) EXIT_FAILURE;
+					}
+
+					// Insertion du mdp en tête dans la liste chainée
+					if(insert(head,mdp) ==-1)
+					{
+						return (void*) EXIT_FAILURE;
+					}
+
+				}
+				//if(count_consonants(mdp)<occurenceConsonnes)// cas ou le mdp contient moins de consonnes que les précédents
+				//{ ne pas ajouter le mdp }
+			}
 		}
-		else
+		else // cas ou reversehash n'a pas su trouvé le mdp originel
 		{
 			printf("\npas de mot de passe trouvé pour ce hash\n ");
 		}
 		free(mdp);
-		//sem_getvalue(&empty_hash, &countSemEmpty);
-		//printf("le int du sémaphores vaut : %d \n", countSemEmpty);
 
 	}
-	printf("fin affhiche_hash");
+	printf("fin affiche_hash");
 	return EXIT_SUCCESS;
 }
 
@@ -222,7 +438,7 @@ void *lectureFichier(void * fichier)
 	return EXIT_SUCCESS;
 }
 
-/*--------------------------------------------------------------*/
+/*--------------------------MAIN------------------------------------*/
 
 
 /** La fonction main est la fonction principale de notre programme:
@@ -276,7 +492,6 @@ int main(int argc, char *argv[]) {
 	}
 	printf("\t\t\t Fin de l'interprétation des commandes \n\n");
 
-/* 2e étape :  lecture des fichiers d'entree */
 
 	//Initialisation du mutex et des sémaphores
 	pthread_mutex_init(&mutex_hash, NULL);
@@ -301,7 +516,6 @@ int main(int argc, char *argv[]) {
 	if(tab_hash==NULL)
 	{
 		fprintf(stderr, "Erreur malloc allocation mémoire pour tab_hash\n");
-		//free(tab_hash); // Me - Si il plante il faut le free malgré tout ? non il me semble ;-)
 		return EXIT_FAILURE;
 	}
 
@@ -313,7 +527,22 @@ int main(int argc, char *argv[]) {
 
 	/* Me - Il faudra prendre en compte par la suite que il peut y avoir plusieurs fichiers d'entrée dont chaque pointeur est stocké dans fichiersEntree */
 
-	//Malloc car utilisé par d'autres threads
+	// Création de la liste chainée
+	head = (node**) malloc(sizeof(node*)); // head est un pointeur vers la tete de la liste chaînée
+	if(head == NULL)
+	{
+		fprintf(stderr, "Erreur malloc allocation mémoire pour head\n");
+		return EXIT_FAILURE;
+	}
+	
+	
+	
+	
+
+
+
+
+
 
 	char* fichier = (char*) malloc(sizeof(argv[1])); // Me - le fichier d'entree ne se situe pas nécessairement à la premiere place du tableau argv
 	if(fichier==NULL)
@@ -328,6 +557,7 @@ int main(int argc, char *argv[]) {
 	//Initialisation des threads
 	pthread_t producteur;
 	pthread_t consommateur[nbreThreadsCalcul];
+	
 
 	err = pthread_create(&producteur, NULL, &lectureFichier, (void*) fichier);
 	if(err !=0) // cas où pthread_create a planté
@@ -359,18 +589,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	free(tab_hash);
-
-	/* 3e étape : les threads de calculs de reverse
-	*/
-
-	/* 4e étapes : création du tableau contenant les MdP (taille : même que pour les hach ?)
-	*/
-
-	/* 5e étape : comparaison du MdP qui sort du tableau avec les autres MdP dans une liste chainées.
-	Si plus petit nombre d'occurence dans le nouveau MdP : on ne fait rien
-	Si même nombre d'occurence : on ajoute le MdP à la liste chainées
-	Si plus grand nombre d'occurence : on supprime la liste chainée existance pour la remplacer par le nouveau MdP
-	*/
 
 	/* 6e étape : quand tous les threads ont fini de s'executer, affiche sur stdout ou écrit dans
 	FICHIEROUT la liste chainée qu'il reste
