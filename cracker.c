@@ -5,7 +5,7 @@
 	Auteurs:
 		- CAMBERLIN Merlin
 		- PISVIN Arthur
-	Version: 29-04-19 - Corrections multiples
+	Version: 01-05-19 - Corrections communications entre threads
 
 	Commandes à indiquer dans le shell:
 		- cd ~/Documents/LSINF1252-PasswordCracker-Gr118-2019
@@ -88,7 +88,7 @@ void* affiche_hash()
 	while(!fin_de_lecture || nbreSlotHashRempli)
 	// Tant que la lecture du fichier n'est pas finie ET que le slot n'est pas vide.
 	{
-		printf("nbre de slot vide = %d\n", nbreSlotHashRempli);
+		printf("nbre de slot rempli = %d\n", nbreSlotHashRempli);
 		char* mdp = (char*) malloc(sizeof(char)*LENPWD);
 		if(mdp == NULL)
 		{
@@ -111,7 +111,7 @@ void* affiche_hash()
 				printf("L'adresse dans tab_hash est : %p à l'indice %d (affiche)\n", *(tab_hash+i), i);
 				printf("le hash traité dans reverehash est : %s\n", (*(tab_hash+i))->hash);
 				*(tab_hash+i)=NULL;
-				nbreSlotHashRempli++;
+				nbreSlotHashRempli--;
 				conditionArret = 0;
 			}
 		}
@@ -198,7 +198,7 @@ void *lectureFichier(void * fichier)
 				printf("L'adresse dans tab_hash est : %p à l'indice %d (lecture)\n", *(tab_hash+i), i);
 				printf("Le hash placé dans tab_hash est %s\n", (*(tab_hash+i))->hash );
 				place_trouvee=0;
-				nbreSlotHashRempli--;
+				nbreSlotHashRempli++;
 			}
 		}
 
@@ -247,7 +247,6 @@ int main(int argc, char *argv[]) {
 			case 't':
 				nbreThreadsCalcul = atoi(optarg); // conversion du tableau de caractères en int
 				N = nbreThreadsCalcul*2;
-				nbreSlotHashRempli = N;
 				printf("-t spécifié : nombre de threads de calcul = %d ;\n",nbreThreadsCalcul);
 				index+=2;
 				break;
@@ -258,7 +257,7 @@ int main(int argc, char *argv[]) {
 				break;
 			case 'o':
 				sortieStandard = 0;
-				char* fichierSortie = optarg;				
+				char* fichierSortie = optarg;
 				printf("-o spécifié : %s\n",fichierSortie);
 				index+=2;
 				break;
@@ -272,17 +271,16 @@ int main(int argc, char *argv[]) {
 					printf("%s ",argv[index]);
 				}
 				printf("\n");
-				break;		        
+				break;
 		}
 	}
 	printf("\t\t\t Fin de l'interprétation des commandes \n\n");
 
-	
 /* 2e étape :  lecture des fichiers d'entree */
 
 	//Initialisation du mutex et des sémaphores
 	pthread_mutex_init(&mutex_hash, NULL);
-	
+
 	int err = sem_init(&empty_hash, 0,N);
 	if(err != 0)// cas où sem_init a planté 
 	{
@@ -314,7 +312,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* Me - Il faudra prendre en compte par la suite que il peut y avoir plusieurs fichiers d'entrée dont chaque pointeur est stocké dans fichiersEntree */
-	
+
 	//Malloc car utilisé par d'autres threads
 
 	char* fichier = (char*) malloc(sizeof(argv[1])); // Me - le fichier d'entree ne se situe pas nécessairement à la premiere place du tableau argv
@@ -323,7 +321,8 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Erreur allocation mémoire pour nomFichier\n");
 		return EXIT_FAILURE;
 	}
-	strcpy(fichier,argv[1]); // CHANGER POUR PLUSIEURS FICHIERS
+	printf("index : %d", index);
+	strcpy(fichier,argv[index-1]); // CHANGER POUR PLUSIEURS FICHIERS
 
 
 	//Initialisation des threads
