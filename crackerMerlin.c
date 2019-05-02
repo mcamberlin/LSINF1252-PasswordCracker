@@ -2,10 +2,11 @@
 
 //Constantes
 const char CONSONNES[] = {'b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z'};
-const char [] = {'a','e','i','o','u','y'};
+const char VOYELLES [] = {'a','e','i','o','u','y'};
 int occurenceVoyelles=0;
 int occurenceConsonnes=0;
 
+/*
 typedef struct node{
     char mdp[LENPWD];
     struct node *next;
@@ -13,6 +14,7 @@ typedef struct node{
 
 //Création de la liste simplement chainée:
 node** head;
+*/
  
 
 /** La fonction count_consonants() compte le nombre de consommes dans une chaine de caractères
@@ -27,12 +29,13 @@ int count_consonants(char* monString)
 	for(int i=0;*(monString+i) !='\0';i++) // tant que on a pas vérifié chaque lettre de monString
 	{
 		j=0;
-		while(j<20 && *(monString+i) != consonnes[j])
+		while(j<20 && *(monString+i) != CONSONNES[j])
 		{
 			j++;	
 		}
-		if(*(monString+i) == consonnes[j])
+		if(j<20 && *(monString+i) == CONSONNES[j])
 		{
+			printf("*(monString+%d) : %c , CONSONNES[%d] = %c\n",i,*(monString+i),j, CONSONNES[j]);
 			nbreConsonnes++;
 		}
 	}
@@ -52,12 +55,12 @@ int count_vowels(char* monString)
 	{
 		j=0;
 		//printf("*(monString+i) : %c \n",*(monString+i));
-		while(j<6 && *(monString+i) != voyelles[j])
+		while(j<6 && *(monString+i) != VOYELLES[j])
 		{
-			//printf(" voyelles[j] : %c , *(monString+i) : %c \n",voyelles[j],*(monString+i));
+			//printf(" VOYELLES[j] : %c , *(monString+i) : %c \n",VOYELLES[j],*(monString+i));
 			j++;
 		}
-		if(voyelles[j] == *(monString+i))
+		if(j<6 && VOYELLES[j] == *(monString+i))
 		{
 			nbreVoyelles++;
 		}
@@ -72,6 +75,7 @@ int count_vowels(char* monString)
 		- @value = un tableau de caractère représentant le mdp à insérer dans la liste chainée
 	@post 	- 0 si l'insertion dans la liste chaînée s'est réalisée avec succès, -1 sinon
 */
+/*
 int insert(node_t **head, char val[]) 
 {
 	// Si aucun argument 
@@ -113,12 +117,14 @@ int insert(node_t **head, char val[])
         	return 0;
 	}    
 }
+*/
 
 /** La fonction insert() insére dans une simple liste chainée un élément
 	@pre 	- @head = un pointeur vers le premier noeud de la liste chainée. Si @head == NULL, retourne -1
 		- @value = un tableau de caractère représentant le mdp à insérer dans la liste chainée
 	@post 	- 0 si l'insertion dans la liste chaînée s'est réalisée avec succès, -1 sinon
 */
+/*
 int insert(node **head, char val[]) 
 {
 	// Si aucun argument 
@@ -160,11 +166,12 @@ int insert(node **head, char val[])
         	return 0;
 	}    
 }
-
+*/
 /** La fonction free() libère la liste chaînée associée à sa tête passée en argument
 	@pre 	- @head = un pointeur vers le pointeur head. Si @head == NULL, retourne -1
 	@post 	- 0 si la suppression de la liste chaînée s'est réalisée avec succès, -1 sinon
 */
+/*
 int free(node **head) 
 {
 	if(head == NULL)
@@ -189,9 +196,7 @@ int free(node **head)
 	*head = NULL;
 	return 0;
 }
-
-
-
+*/
 
 
 
@@ -209,6 +214,11 @@ int main(int argc, char *argv[])
 	int nbreVoyelles1 =  count_vowels(monString1);
 	int nbreConsonnes1 = count_consonants(monString1);
 
+	char monString2[] = "arthur";
+	int nbreVoyelles2 = count_vowels(monString2);
+	int nbreConsonnes2 = count_consonants(monString2);
+
+	/*
 	// Création de la liste chainée
 	head = (node**) malloc(sizeof(node*)); // head est un pointeur vers la tete de la liste chaînée
 	if(head == NULL)
@@ -216,12 +226,14 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Erreur malloc allocation mémoire pour head\n");
 		return EXIT_FAILURE;
 	}
-      
+      	*/
     
 
 
 	printf("Il y a %d voyelles dans %s \n",nbreVoyelles1,monString1);
 	printf("Il y a %d consonnes dans %s \n",nbreConsonnes1,monString1);
+	printf("Il y a %d voyelles dans %s \n",nbreVoyelles2,monString2);
+	printf("Il y a %d consonnes dans %s \n",nbreConsonnes2,monString2);
 }
 
 

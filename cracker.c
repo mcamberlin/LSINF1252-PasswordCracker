@@ -10,7 +10,7 @@
 	Commandes à indiquer dans le shell:
 		- cd ~/Documents/LSINF1252-PasswordCracker-Gr118-2019
 		- gcc cracker.c reverse.c sha256.c -o cracker -lpthread 
-		- ./cracker arg1 arg2 arg3
+		- ./cracker -t 5 test-input/02_6c_5.bin
 		- echo -n monString | sha256sum
 
 	Commandes git:
@@ -31,10 +31,10 @@
 #define LENPWD 6 // Nbre maximal de caractères dans les mots de passes originels
 
 // Includes
-#include <stdio.h>  
+#include <stdio.h> // pour utiliser fopen()
 #include <stdlib.h>
 #include <string.h> // pour utiliser la fonction strstr() semblable à contains()
-#include <unistd.h>  // pour utiliser read(), close()
+#include <unistd.h>  // pour utiliser read(), close(), write()
 #include <sys/types.h> // pour utiliser open()
 #include <sys/stat.h> // pour utiliser open()
 #include <fcntl.h>   // pour utiliser open()
@@ -53,6 +53,7 @@ int sortieStandard = 1;		//true
 int nbreFichiersEntree = 0;
 int fin_de_lecture = 0;       	//false
 int nbreSlotHashRempli = 0;
+char* fichierSortie;
 
 // Déclaration d'un tableau de pointeurs contenant les noms des fichiers d'entrée
 char** fichiersEntree; 
@@ -108,7 +109,7 @@ int count_consonants(char* monString)
 		{
 			j++;
 		}
-		if(*(monString+i) == CONSONNES[j])
+		if(j<20 && *(monString+i) == CONSONNES[j]) // j<20 sinon outOfBounds
 		{
 			nbreConsonnes++;
 		}
@@ -135,7 +136,7 @@ int count_vowels(char* monString)
 		{
 			j++;
 		}
-		if(*(monString+i) == VOYELLES[j])
+		if(j<6 && *(monString+i) == VOYELLES[j]) // j<6 sinon outOfBounds
 		{
 			nbreVoyelles++;
 		}
@@ -227,6 +228,76 @@ int freeLinkedList(node **head)
 	return 0;
 }
 
+/** La fonction printList() affiche la liste chainée remplie des 
+	@pre - 
+	@post - 0 si l'affichage de la liste chaînée s'est réalisée avec succès, -1 sinon
+
+*/
+int printList(node** head)
+{
+	if(head == NULL) // argument vide
+	{
+		fprintf(stderr, "**head non spécifié dans printList() \n");
+		return -1;
+	}
+	if(*head == NULL) // liste vide
+	{
+		fprintf(stderr, "La liste chaînée de mdp est vide \n");
+		return 0;
+	}
+
+	if(sortieStandard == 1) // si il faut écrire sur la sortie standard
+	{
+		node* runner = *head;
+		while(runner != NULL)
+		{
+			printf("%s \n",runner->mdp);
+			runner = runner->next;
+		}
+		return 0;
+	}
+	else // si il faut écrire dans le fichier @fichierSortie
+	{
+
+		int fd = open(fichierSortie,O_RDONLY|O_CREAT,O_RDONLY);
+		if(fd ==-1)// cas ou open a planté
+		{
+		    return -1;
+		}
+		
+		node* runner = *head;
+
+		void* buf;
+		int err;
+		while(runner != NULL)
+		{
+			buf = malloc(sizeof(runner->mdp));
+			if(buf == NULL) // cas où malloc a planté
+			{
+				fprintf(stderr, "Erreur allocation de mémoire pour @buf dans printList() \n");
+				return -1;
+			}
+			strcpy(buf,runner->mdp);
+			err = (int) write(fd, buf, sizeof(runner->mdp));
+			if(err == -1)
+			{
+				fprintf(stderr, "Erreur dans write() \n");
+				return -1;
+			}
+			//printf("%s \n",runner->mdp);
+			runner = runner->next;
+			free(buf);
+		}
+
+		if(close(fd) ==-1)
+		{
+			fprintf(stderr, "Erreur fermeture du fichier dans printList() \n");
+		    	return -1;
+		}
+		printf("Fin printList() \n");
+		return 0;
+	}
+}	
 
 /*--------------------------------------------------------------*/
 
@@ -278,7 +349,8 @@ void* affiche_hash()
 
 			if(critereVoyelles == 1) // cas ou le critère de sélection des mdp sont les voyelles
 			{
-				if(count_vowels(mdp)==occurenceVoyelles) // cas ou le mdp contient le meme nombre de voyelles que les précédents
+				int vowels = count_vowels(mdp);
+				if(vowels==occurenceVoyelles) // cas ou le mdp contient le meme nombre de voyelles que les précédents
 				{
 					// Insertion du mdp en tête dans la liste chainée
 					if(insert(head,mdp) ==-1)
@@ -287,9 +359,9 @@ void* affiche_hash()
 					}
 
 				}
-				if(count_vowels(mdp)>occurenceVoyelles)
+				if(vowels>occurenceVoyelles)
 				{
-					occurenceVoyelles = count_vowels(mdp);
+					occurenceVoyelles = vowels;
 					// 1.Libérer toutes la liste chainée
 					if(freeLinkedList(head) ==-1)
 					{
@@ -304,14 +376,15 @@ void* affiche_hash()
 					}
 
 				}
-				//if(count_vowels(mdp)<occurenceVoyelles)// cas ou le mdp contient moins de voyelles que les précédents
+				//if(vowels<occurenceVoyelles)// cas ou le mdp contient moins de voyelles que les précédents
 				//{ ne pas ajouter le mdp }
 
 
 			}
 			else // cas ou le critère de sélection des mdp sont les consonnes
 			{
-				if(count_consonants(mdp)==occurenceConsonnes) // cas ou le mdp contient le meme nombre de consonnes que les précédents
+				int consonants = count_consonants(mdp);
+				if(consonants==occurenceConsonnes) // cas ou le mdp contient le meme nombre de consonnes que les précédents
 				{
 					// Insertion du mdp en tête dans la liste chainée
 					if(insert(head,mdp) ==-1)
@@ -320,9 +393,10 @@ void* affiche_hash()
 					}
 					
 				}
-				if(count_consonants(mdp)>occurenceVoyelles)
+				printf("Il y a %d consonnes dans %s \n",consonants,mdp);
+				if(consonants>occurenceConsonnes)
 				{
-					occurenceConsonnes = count_consonants(mdp);
+					occurenceConsonnes = consonants;
 					// 1.Libérer toutes la liste chainée
 					if(freeLinkedList(head) ==-1)
 					{
@@ -336,7 +410,7 @@ void* affiche_hash()
 					}
 
 				}
-				//if(count_consonants(mdp)<occurenceConsonnes)// cas ou le mdp contient moins de consonnes que les précédents
+				//if(consonants<occurenceConsonnes)// cas ou le mdp contient moins de consonnes que les précédents
 				//{ ne pas ajouter le mdp }
 			}
 		}
@@ -347,7 +421,7 @@ void* affiche_hash()
 		free(mdp);
 
 	}
-	printf("fin affiche_hash");
+	printf("fin affiche_hash \n");
 	return EXIT_SUCCESS;
 }
 
@@ -585,6 +659,8 @@ int main(int argc, char *argv[]) {
 	/* 6e étape : quand tous les threads ont fini de s'executer, affiche sur stdout ou écrit dans
 	FICHIEROUT la liste chainée qu'il reste
 	*/
+	printf("Début printList() \n");
+	printList(head);
         printf ("\n \n \nFin du programme...\n");
         return EXIT_SUCCESS;
 
