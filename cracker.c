@@ -100,13 +100,13 @@ node** head;
 int count_consonants(char* monString)
 {
 	int nbreConsonnes = 0;
-	int j=0;	
+	int j=0;
 	for(int i=0;*(monString+i) !='\0';i++) // tant que on a pas vérifié chaque lettre de monString
 	{
 		j=0;
 		while(j<20 && *(monString+i) != CONSONNES[j]) // tant que on a pas comparé avec toutes les consonnes
 		{
-			j++;	
+			j++;
 		}
 		if(*(monString+i) == CONSONNES[j])
 		{
@@ -170,7 +170,7 @@ int insert(node **head, char val[])
 			fprintf(stderr, "Erreur allocation de mémoire newNode dans le cas d'une liste vide dans insert() \n");
 			return -1;
 		}
-		
+
 		strcpy(newNode->mdp,val); // copie dans @newNode la chaine de caractères @val 
 		newNode->next = NULL;
 		*head = newNode;
@@ -188,8 +188,8 @@ int insert(node **head, char val[])
 			return -1;
 		}
 		strcpy(newNode->mdp,val); // copie dans le nouveau noeud la chaine de caractères val 
-        	newNode->next = *head;          
-        	*head = newNode; 
+        	newNode->next = *head;
+        	*head = newNode;
         	return 0;
 	}    
 }
@@ -239,7 +239,6 @@ void* affiche_hash()
 	while(!fin_de_lecture || nbreSlotHashRempli)
 	// Tant que la lecture du fichier n'est pas finie ou que le buffer n'est pas vide.
 	{
-		printf("nbre de slot rempli = %d\n", nbreSlotHashRempli);
 		char* mdp = (char*) malloc(sizeof(char)*LENPWD);
 		if(mdp == NULL)
 		{
@@ -249,7 +248,6 @@ void* affiche_hash()
 
 		uint8_t* hash;
 
-		printf("avant section critique affiche_hash\n");
 		sem_wait(&full_hash);
 		pthread_mutex_lock(&mutex_hash);
 		//début section critique
@@ -260,10 +258,10 @@ void* affiche_hash()
 			{
 				hash = (uint8_t*) *(tab_hash+i);
 				printf("L'adresse dans tab_hash est : %p à l'indice %d (affiche)\n", *(tab_hash+i), i);
-				printf("le hash traité dans reverehash est : %s\n", (*(tab_hash+i))->hash);
 				*(tab_hash+i)=NULL;
 				nbreSlotHashRempli--;
 				conditionArret = 0;
+				printf("nombre de slot rempli : %d\n", nbreSlotHashRempli);
 			}
 		}
 
@@ -274,7 +272,7 @@ void* affiche_hash()
 		if( reversehash(hash, mdp, LENPWD) ) // cas ou reversehash() a trouvé le mdp originel
 		{
 			printf("\nle hash affiché grace à affiche_hash est %s\n\n", mdp);
-			
+
 			/* ---------------------------------------------- */
 			// COMPARER LE NOMBRE D'OCCURENCES DU MDP AVEC CEUX DANS LA LISTE CHAINEE
 
@@ -287,7 +285,7 @@ void* affiche_hash()
 					{
 						return (void*) EXIT_FAILURE;
 					}
-					
+
 				}
 				if(count_vowels(mdp)>occurenceVoyelles)
 				{
@@ -295,7 +293,7 @@ void* affiche_hash()
 					// 1.Libérer toutes la liste chainée
 					if(freeLinkedList(head) ==-1)
 					{
-						
+
 						return (void*) EXIT_FAILURE;
 					}
 
@@ -308,7 +306,7 @@ void* affiche_hash()
 				}
 				//if(count_vowels(mdp)<occurenceVoyelles)// cas ou le mdp contient moins de voyelles que les précédents
 				//{ ne pas ajouter le mdp }
-				
+
 
 			}
 			else // cas ou le critère de sélection des mdp sont les consonnes
@@ -412,7 +410,6 @@ void *lectureFichier(void * fichier)
 				memcpy(ptrhash, ptr, sizeof(hash));
 				*(tab_hash+i)=ptrhash;
 				printf("L'adresse dans tab_hash est : %p à l'indice %d (lecture)\n", *(tab_hash+i), i);
-				printf("Le hash placé dans tab_hash est %s\n", (*(tab_hash+i))->hash );
 				place_trouvee=0;
 				nbreSlotHashRempli++;
 			}
@@ -449,7 +446,7 @@ void *lectureFichier(void * fichier)
 */
 int main(int argc, char *argv[]) {
 
-	
+
 /* 1e étape :  lecture des arguments de la commande de l'exécutable [FAIT]*/
 	printf("\n \t\t\t Interprétation des commandes \n");
 	int opt;
@@ -463,7 +460,7 @@ int main(int argc, char *argv[]) {
 			case 't':
 				nbreThreadsCalcul = atoi(optarg); // conversion du tableau de caractères en int
 				N = nbreThreadsCalcul*2;
-				printf("-t spécifié : nombre de threads de calcul = %d ;\n",nbreThreadsCalcul);
+				printf("-t spécifié : nombre de threads de calcul = %d et nombre de slot = %d;\n",nbreThreadsCalcul, N);
 				index+=2;
 				break;
 			case 'c':
@@ -534,10 +531,6 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Erreur malloc allocation mémoire pour head\n");
 		return EXIT_FAILURE;
 	}
-	
-	
-	
-	
 
 
 
@@ -550,7 +543,6 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Erreur allocation mémoire pour nomFichier\n");
 		return EXIT_FAILURE;
 	}
-	printf("index : %d", index);
 	strcpy(fichier,argv[index-1]); // CHANGER POUR PLUSIEURS FICHIERS
 
 
@@ -582,7 +574,7 @@ int main(int argc, char *argv[]) {
 	pthread_join(producteur,NULL);
 
 	// Boucle pour la creation de plusieurs threads pour la lecture
-	for(int i=0; i<1; i++)
+	for(int i=0; i<nbreThreadsCalcul; i++)
 	{
 		// Me - y a pas ca aussi : pthread_join(producteur,NULL); ?
 		pthread_join(consommateur[i],NULL);
