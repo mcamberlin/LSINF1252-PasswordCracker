@@ -55,7 +55,7 @@ int fin_de_lecture = 0;       	//false
 int nbreSlotHashRempli = 0;
 int nbreSlotMdpRempli = 0;
 char* fichierSortie;
-
+int CalculExecution = 0; 	// true tant que tous les threads de calcul n'ont pas fini
 // Déclaration d'un tableau de pointeurs contenant les noms des fichiers d'entrée
 char** fichiersEntree; 
 
@@ -308,11 +308,11 @@ int printList(node** head)
 	}
 }	
 
-
 /* ---------------------------------------------- */
 // COMPARER LE NOMBRE D'OCCURENCES DU MDP AVEC CEUX DANS LA LISTE CHAINEE
 int insertInList(char* mdp)
 {
+	printf("debut insertInList \n");
 	if(critereVoyelles == 1) // cas ou le critère de sélection des mdp sont les voyelles
 	{
 		int vowels = count_vowels(mdp);
@@ -391,10 +391,11 @@ int insertInList(char* mdp)
 */
 void* insert_mdp()
 {
-	while(!fin_de_lecture || nbreSlotHashRempli || nbreSlotMdpRempli)
+	while(!fin_de_lecture || nbreSlotHashRempli || nbreSlotMdpRempli || CalculExecution) // tant que tous les threads de calcul n'ont pas fini de calculer
 	{
-
+		printf("nbreSlotHashRempli : %d nbreSlotMdpRempli: %d \n",nbreSlotHashRempli,nbreSlotMdpRempli);
 		char* mdp;
+		printf("CalculExecution : %d \n",CalculExecution);
 
 		sem_wait(&full_mdp);
 		pthread_mutex_lock(&mutex_mdp);
@@ -425,6 +426,7 @@ void* insert_mdp()
 			return (void*) EXIT_FAILURE;
 		}
 	}
+	printf("Fin comparateur \n");
 	return EXIT_SUCCESS;
 }
 
@@ -436,7 +438,7 @@ void* insert_mdp()
 
 /*--------------------------------------------------------------*/
 
-/** La fonction affiche_hash est le consommateur du producteur-consommateur
+/** La fonction reverse_hash est le consommateur du producteur-consommateur
 	@pre - 
 	@post - lis les fichiers binaires en entrée, lance reversehash(), ajuste la liste chaînée
 */
@@ -445,6 +447,7 @@ void* reverse_hash()
 	while(!fin_de_lecture || nbreSlotHashRempli)
 	// Tant que la lecture du fichier n'est pas finie ou que le buffer n'est pas vide.
 	{
+		CalculExecution++;
 		char* mdp = (char*) malloc(sizeof(char)*LENPWD);
 		if(mdp == NULL)
 		{
@@ -458,7 +461,7 @@ void* reverse_hash()
 		pthread_mutex_lock(&mutex_hash);
 		//début section critique
 		int conditionArret = 1; // condition nécessaire pour sortir de la boucle for une fois que le pointeur du slot a ete copié dans hash
-		for(int i=0; i<2*nbreThreadsCalcul && conditionArret; i++)
+		for(int i=0; i<N && conditionArret; i++)
 		{
 			if(*(tab_hash+i)!=NULL) //si la case est remplie
 			{
@@ -469,44 +472,43 @@ void* reverse_hash()
 			}
 		}
 
-		pthread_mutex_unlock(&mutex_mdp);
+		pthread_mutex_unlock(&mutex_hash);
 		sem_post(&empty_hash);
 
 		printf("début reversehash\n");
 		if( reversehash(hash, mdp, LENPWD) ) // cas ou reversehash() a trouvé le mdp originel
 		{
 			printf("\nle hash affiché grace à reverse_hash est %s\n\n", mdp);
+				sem_wait(&empty_mdp);
+				pthread_mutex_lock(&mutex_mdp);
 
-			sem_wait(&empty_mdp);
-			pthread_mutex_lock(&mutex_mdp);
+				printf("Debut section critique producteur reversehash\n");
+				//Début section critique
 
-			printf("Debut section critique producteur reversehash\n");
-			//Début section critique
-
-			// Chercher de la place dans le tableau pour ajouter
-			int place_trouvee = 1;
-			for(int i=0; i<N  && place_trouvee; i++)
-			{
-				if(*(tab_mdp+i)==NULL) //si la case est vide
+				// Chercher de la place dans le tableau pour ajouter
+				int place_trouvee = 1;
+				for(int i=0; i<N  && place_trouvee; i++)
 				{
-					*(tab_mdp+i) = mdp;
-					printf("L'adresse dans tab_mdp est : %p à l'indice %d (reverse consommateur)\n", *(tab_mdp+i), i);
-					place_trouvee = 0;
-					nbreSlotMdpRempli++;
+					if(*(tab_mdp+i)==NULL) //si la case est vide
+					{
+						*(tab_mdp+i) = mdp;
+						printf("L'adresse dans tab_mdp est : %p à l'indice %d (reverse consommateur)\n", *(tab_mdp+i), i);
+						place_trouvee = 0;
+						nbreSlotMdpRempli++;
+					}
 				}
-			}
 
-			printf("Fin section critique producteur reversehash\n");
+				printf("Fin section critique producteur reversehash\n");
 
-			pthread_mutex_unlock(&mutex_mdp);
-			sem_post(&full_mdp);
-
+				pthread_mutex_unlock(&mutex_mdp);
+				sem_post(&full_mdp);
+				printf("fin ajout mdp\n");
 		}
 		else // cas ou reversehash n'a pas su trouvé le mdp originel
 		{
 			printf("\npas de mot de passe trouvé pour ce hash\n ");
 		}
-
+		CalculExecution--;
 	}
 	printf("fin affiche_hash \n");
 	return EXIT_SUCCESS;
@@ -713,7 +715,7 @@ int main(int argc, char *argv[]) {
 	/*
 	Création du tableau contenant les mdp
 	*/
-	tab_mdp = (char**) malloc((size_t) N*sizeof(char*)*LENPWD);
+	tab_mdp = (char**) malloc((size_t) N*sizeof(char*));
 	if(tab_mdp==NULL)
 	{
 		fprintf(stderr, "Erreur malloc allocation mémoire pour tab_mdp\n");
@@ -747,9 +749,7 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	/* Me - Il faudra prendre en compte par la suite que il peut y avoir plusieurs fichiers d'entrée dont chaque pointeur est stocké dans fichiersEntree */
-
-
+	
 	// Création de la liste chainée
 	head = (node**) malloc(sizeof(node*)); // head est un pointeur vers la tete de la liste chaînée
 	if(head == NULL)
