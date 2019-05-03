@@ -417,6 +417,8 @@ void* insert_mdp()
 		pthread_mutex_unlock(&mutex_mdp);
 		sem_post(&empty_mdp);
 
+		printf("le mot de passe à insérer dans tab_mdp est %s\n", mdp);
+
 		if(insertInList(mdp)==-1)
 		{
 			fprintf(stderr, "Erreur insertion mot de passe dans tab_mdp\n");
@@ -467,7 +469,7 @@ void* reverse_hash()
 			}
 		}
 
-		pthread_mutex_unlock(&mutex_hash);
+		pthread_mutex_unlock(&mutex_mdp);
 		sem_post(&empty_hash);
 
 		printf("début reversehash\n");
@@ -476,10 +478,9 @@ void* reverse_hash()
 			printf("\nle hash affiché grace à reverse_hash est %s\n\n", mdp);
 
 			sem_wait(&empty_mdp);
-			printf("place trouvée dans tab_mdp\n");
-			pthread_mutex_lock(&mutex_mdp); // REMPLACER HASH PAR MDP
+			pthread_mutex_lock(&mutex_mdp);
 
-			printf("section critique producteur reversehash\n");
+			printf("Debut section critique producteur reversehash\n");
 			//Début section critique
 
 			// Chercher de la place dans le tableau pour ajouter
@@ -489,13 +490,14 @@ void* reverse_hash()
 				if(*(tab_mdp+i)==NULL) //si la case est vide
 				{
 					*(tab_mdp+i) = mdp;
-					printf("L'adresse dans tab_mdp est : %p à l'indice %d (lecture)\n", *(tab_mdp+i), i);
+					printf("L'adresse dans tab_mdp est : %p à l'indice %d (reverse consommateur)\n", *(tab_mdp+i), i);
 					place_trouvee = 0;
 					nbreSlotMdpRempli++;
 				}
 			}
 
-			// Fin section critique
+			printf("Fin section critique producteur reversehash\n");
+
 			pthread_mutex_unlock(&mutex_mdp);
 			sem_post(&full_mdp);
 
@@ -568,7 +570,7 @@ void *lectureFichier(void * fichier)
 				}
 				memcpy(ptrhash, ptr, sizeof(hash));
 				*(tab_hash+i)=ptrhash;
-				printf("L'adresse dans tab_hash est : %p à l'indice %d (lecture)\n", *(tab_hash+i), i);
+				printf("L'adresse dans tab_hash est : %p à l'indice %d (lecture producteur)\n", *(tab_hash+i), i);
 				place_trouvee=0;
 				nbreSlotHashRempli++;
 			}
@@ -707,35 +709,29 @@ int main(int argc, char *argv[]) {
 	}
 
 
-	printf("avant initialisation tab_mdp\n");
+
 	/*
 	Création du tableau contenant les mdp
 	*/
-	printf("taille du tab_mdp = %ld\n", N*sizeof(char)*LENPWD);
-
-
-
-	tab_mdp = (char**) malloc((size_t) N*sizeof(char)*LENPWD);
+	tab_mdp = (char**) malloc((size_t) N*sizeof(char*)*LENPWD);
 	if(tab_mdp==NULL)
 	{
 		fprintf(stderr, "Erreur malloc allocation mémoire pour tab_mdp\n");
 		return EXIT_FAILURE;
 	}
-	printf("apres declaration de tab_hash\n");
+
 	//Initialisation des cellules du tableaux d'adresse à NULL pour savoir vérifier si une case est NULL.
 	for(int i=0; i<N; i++)
 	{
 		*(tab_mdp+i)=NULL;
-		printf("dans tab_mdp : %s\n", *(tab_mdp+i));
 	}
-	printf("apres initialisation tab_mdp\n");
 
 
 	/*
 	Initialisation du mutex et des semaphores pour tab_mdp
 	*/
 	pthread_mutex_init(&mutex_mdp, NULL);
-	printf("apres initialisation mutex mdp");
+
 
 	err = sem_init(&empty_mdp, 0, N);
 	if(err != 0)// cas où sem_init a planté 
@@ -753,7 +749,7 @@ int main(int argc, char *argv[]) {
 
 	/* Me - Il faudra prendre en compte par la suite que il peut y avoir plusieurs fichiers d'entrée dont chaque pointeur est stocké dans fichiersEntree */
 
-	printf("avant malloc head");
+
 	// Création de la liste chainée
 	head = (node**) malloc(sizeof(node*)); // head est un pointeur vers la tete de la liste chaînée
 	if(head == NULL)
@@ -761,7 +757,6 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Erreur malloc allocation mémoire pour head\n");
 		return EXIT_FAILURE;
 	}
-	printf("apres malloc head\n");
 
 
 
@@ -815,6 +810,7 @@ int main(int argc, char *argv[]) {
 	pthread_join(comparateur,NULL);
 
 	free(tab_hash);
+	free(tab_mdp);
 
 	/* 6e étape : quand tous les threads ont fini de s'executer, affiche sur stdout ou écrit dans
 	FICHIEROUT la liste chainée qu'il reste
