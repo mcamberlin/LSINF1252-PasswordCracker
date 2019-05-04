@@ -1,263 +1,108 @@
-#include <stdio.h>
+#include <stdio.h> // pour utiliser fopen()
+#include <stdlib.h>
+#include <string.h> // pour utiliser la fonction strstr() semblable à contains()
+#include <unistd.h>  // pour utiliser read(), close(), write()
+#include <sys/types.h> // pour utiliser open()
+#include <sys/stat.h> // pour utiliser open()
+#include <fcntl.h>   // pour utiliser open()
 
-//Constantes
-const char CONSONNES[] = {'b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z'};
-const char VOYELLES [] = {'a','e','i','o','u','y'};
-int occurenceVoyelles=0;
-int occurenceConsonnes=0;
+/** La fonction printList() affiche la liste chainée remplie des 
+	@pre - 
+	@post - 0 si l'affichage de la liste chaînée s'est réalisée avec succès, -1 sinon
 
-/*
-typedef struct node{
-    char mdp[LENPWD];
-    struct node *next;
-} node;
-
-//Création de la liste simplement chainée:
-node** head;
-*/
- 
-
-/** La fonction count_consonants() compte le nombre de consommes dans une chaine de caractères
-	@pre - monString = un pointeur vers une chaîne de caractères dont on souhaite compter le nombre de consonnes
-	@post - retourne le nombre de consonnes dans monString
-
-*/
-int count_consonants(char* monString)
-{
-	int nbreConsonnes = 0;
-	int j=0;	
-	for(int i=0;*(monString+i) !='\0';i++) // tant que on a pas vérifié chaque lettre de monString
-	{
-		j=0;
-		while(j<20 && *(monString+i) != CONSONNES[j])
-		{
-			j++;	
-		}
-		if(j<20 && *(monString+i) == CONSONNES[j])
-		{
-			printf("*(monString+%d) : %c , CONSONNES[%d] = %c\n",i,*(monString+i),j, CONSONNES[j]);
-			nbreConsonnes++;
-		}
-	}
-	return nbreConsonnes;
-}
-
-/** La fonction count_vowels() compte le nombre de voyelles dans une chaine de caractères
-	@pre - monString = un pointeur vers une chaîne de caractères dont on souhaite compter le nombre de voyelles
-	@post - retourne le nombre de voyelles dans monString
-
-*/
-int count_vowels(char* monString)
-{
-	int nbreVoyelles = 0;
-	int j=0;
-	for(int i=0;*(monString+i) != '\0';i++)// tant que on a pas vérifié chaque lettre de monString
-	{
-		j=0;
-		//printf("*(monString+i) : %c \n",*(monString+i));
-		while(j<6 && *(monString+i) != VOYELLES[j])
-		{
-			//printf(" VOYELLES[j] : %c , *(monString+i) : %c \n",VOYELLES[j],*(monString+i));
-			j++;
-		}
-		if(j<6 && VOYELLES[j] == *(monString+i))
-		{
-			nbreVoyelles++;
-		}
-	}
-	return nbreVoyelles;
-}
-
-
-
-/** La fonction insert() insére dans une simple liste chainée un élément
-	@pre 	- @head = un pointeur vers le premier noeud de la liste chainée. Si @head == NULL, retourne -1
-		- @value = un tableau de caractère représentant le mdp à insérer dans la liste chainée
-	@post 	- 0 si l'insertion dans la liste chaînée s'est réalisée avec succès, -1 sinon
 */
 /*
-int insert(node_t **head, char val[]) 
+int printList(node** head)
 {
-	// Si aucun argument 
-	if(head == NULL) 
+	if(head == NULL) // argument vide
 	{
+		fprintf(stderr, "**head non spécifié dans printList() \n");
 		return -1;
 	}
-
-	// Si la liste est vide
-	if(*head == NULL) 
+	if(*head == NULL) // liste vide
 	{
-		// Ajouter le nouveau élément
-		// Définition du nouveau noeud
-		node* newNode = (node*) malloc(sizeof(node)); 
-		if(newNode == NULL)
-		{
-			return -1;
-		}
-		
-		strcpy(newNode->mdp,val); // copie dans le nouveau noeud la chaine de caractères val
-		newNode->next = NULL;
-		*head = newNode;
+		fprintf(stderr, "La liste chaînée de mdp est vide \n");
 		return 0;
 	}
 
-	// Si la liste n'est pas vide
-	else
+	if(sortieStandard == 1) // si il faut écrire sur la sortie standard
 	{
-		// Insertion en tête de liste
-		// Définition du nouveau noeud
-        	node* newNode = (node*) malloc(sizeof(node)); 
-        	if(newNode == NULL)
+		node* runner = *head;
+		while(runner != NULL)
 		{
-			return -1;
+			printf("%s \n",runner->mdp);
+			runner = runner->next;
 		}
-		strcpy(newNode->mdp,val); // copie dans le nouveau noeud la chaine de caractères val 
-        	newNode->next = *head;          
-        	*head = newNode; 
-        	return 0;
-	}    
-}
-*/
-
-/** La fonction insert() insére dans une simple liste chainée un élément
-	@pre 	- @head = un pointeur vers le premier noeud de la liste chainée. Si @head == NULL, retourne -1
-		- @value = un tableau de caractère représentant le mdp à insérer dans la liste chainée
-	@post 	- 0 si l'insertion dans la liste chaînée s'est réalisée avec succès, -1 sinon
-*/
-/*
-int insert(node **head, char val[]) 
-{
-	// Si aucun argument 
-	if(head == NULL) 
-	{
-		return -1;
-	}
-
-	// Si la liste est vide
-	if(*head == NULL) 
-	{
-		// Ajouter le nouveau élément
-		// Définition du nouveau noeud
-		node* newNode = (node*) malloc(sizeof(node)); 
-		if(newNode == NULL)
-		{
-			return -1;
-		}
-		
-		strcpy(newNode->mdp,val); // copie dans le nouveau noeud la chaine de caractères val
-		newNode->next = NULL;
-		*head = newNode;
 		return 0;
 	}
-
-	// Si la liste n'est pas vide
-	else
+	else // si il faut écrire dans le fichier @fichierSortie
 	{
-		// Insertion en tête de liste
-		// Définition du nouveau noeud
-        	node* newNode = (node*) malloc(sizeof(node)); 
-        	if(newNode == NULL)
+
+		int fd = open(fichierSortie,O_RDONLY|O_CREAT,O_RDONLY);
+		if(fd ==-1)// cas ou open a planté
 		{
-			return -1;
+		    return -1;
 		}
-		strcpy(newNode->mdp,val); // copie dans le nouveau noeud la chaine de caractères val 
-        	newNode->next = *head;          
-        	*head = newNode; 
-        	return 0;
-	}    
-}
-*/
-/** La fonction free() libère la liste chaînée associée à sa tête passée en argument
-	@pre 	- @head = un pointeur vers le pointeur head. Si @head == NULL, retourne -1
-	@post 	- 0 si la suppression de la liste chaînée s'est réalisée avec succès, -1 sinon
-*/
-/*
-int free(node **head) 
-{
-	if(head == NULL)
-	{
-		return -1;
+		
+		node* runner = *head;
+
+		void* buf;
+		int err;
+		while(runner != NULL)
+		{
+			buf = malloc(sizeof(runner->mdp));
+			if(buf == NULL) // cas où malloc a planté
+			{
+				fprintf(stderr, "Erreur allocation de mémoire pour @buf dans printList() \n");
+				return -1;
+			}
+			strcpy(buf,runner->mdp);
+			err = (int) write(fd, buf, sizeof(runner->mdp));
+			if(err == -1)
+			{
+				fprintf(stderr, "Erreur dans write() \n");
+				return -1;
+			}
+			//printf("%s \n",runner->mdp);
+			runner = runner->next;
+			free(buf);
+		}
+
+		if(close(fd) ==-1)
+		{
+			fprintf(stderr, "Erreur fermeture du fichier dans printList() \n");
+		    	return -1;
+		}
+		printf("Fin printList() \n");
+		return 0;
 	}
-
-	if(*head == NULL) // si la liste est vide
-	{
-		return 1;
-	}
-	
-	node* runner = *head;
-	node* previous;
-
-	while(runner !=NULL)
-	{
-		previous = runner;
-		runner = runner->next;		
-		free(previous);	
-	}
-	*head = NULL;
-	return 0;
-}
+}	
 */
-
-
-
-
-
-
-
-
-
-
 int main(int argc, char *argv[]) 
 {
-	// tests
-	char monString1[] = "fermier";
-	int nbreVoyelles1 =  count_vowels(monString1);
-	int nbreConsonnes1 = count_consonants(monString1);
-
-	char monString2[] = "arthur";
-	int nbreVoyelles2 = count_vowels(monString2);
-	int nbreConsonnes2 = count_consonants(monString2);
-
-	/*
-	// Création de la liste chainée
-	head = (node**) malloc(sizeof(node*)); // head est un pointeur vers la tete de la liste chaînée
-	if(head == NULL)
+	int fd = open(argv[1],O_RDONLY|O_CREAT,O_RDONLY);
+	if(fd ==-1)// cas ou open a planté
 	{
-		fprintf(stderr, "Erreur malloc allocation mémoire pour head\n");
-		return EXIT_FAILURE;
+	    return -1;
 	}
-      	*/
-    
+	int z = 23;
+	strcpy(buf,&z);
+
+	int err = (int) write(fd, buf, sizeof(int));
+	if(err == -1)
+	{
+		fprintf(stderr, "Erreur dans write() \n");
+		return -1;
+	}
+
+	free(buf);
 
 
-	printf("Il y a %d voyelles dans %s \n",nbreVoyelles1,monString1);
-	printf("Il y a %d consonnes dans %s \n",nbreConsonnes1,monString1);
-	printf("Il y a %d voyelles dans %s \n",nbreVoyelles2,monString2);
-	printf("Il y a %d consonnes dans %s \n",nbreConsonnes2,monString2);
+	if(close(fd) ==-1)
+	{
+		fprintf(stderr, "Erreur fermeture du fichier dans printList() \n");
+	    	return -1;
+	}
+	printf("Fin printList() \n");
+	return EXIT_SUCCESS;
 }
-
-
-/*
-		else// cas ou le critère de sélection des mdp sont les consonnes
-		{
-			if(count_consants(mdp)==occurenceConsonnes) // cas ou le mdp contient le meme nombre de consonnes que les occurences précédentes
-			{
-				// Insert dans la liste chainée
-			}
-			else if(count_consants(mdp)>occurenceConsonnes)
-			{
-				occurenceConsonnes = count_consants(mdp);
-				// 1.Libérer toutes la liste chainée 
-					//1.1 tester la valeur de retour pour vérifier qu'il n'y ait pas d'erreur
-				// 2.Insérer le nouveau mdp
-					//2.1 tester la valeur de retour pour vérifier qu'il n'y ait pas d'erreur
-			}
-			else // cas ou le mdp contient moins de consonnes que les précédents
-			{
-				// ignorer
-			}
-			
-		}
-*/
-
-

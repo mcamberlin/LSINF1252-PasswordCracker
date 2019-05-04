@@ -5,7 +5,7 @@
 	Auteurs:
 		- CAMBERLIN Merlin
 		- PISVIN Arthur
-	Version: 01-05-19 - Ajout fonction count_vowels() et count_consonants() + création liste chainée
+	Version: 03-05-19 - Corrections problèmes lorsque N threads étaient utilisés pour cracker N hashs
 
 	Commandes à indiquer dans le shell:
 		- cd ~/Documents/LSINF1252-PasswordCracker-Gr118-2019
@@ -30,10 +30,13 @@
 // CONSTANTES dans le préprocesseurs
 #define LENPWD 6 // Nbre maximal de caractères dans les mots de passes originels
 
+// CONSTANTES
+const char RETOUR_LIGNE = '\n';
+
 // Includes
 #include <stdio.h> // pour utiliser fopen()
 #include <stdlib.h>
-#include <string.h> // pour utiliser la fonction strstr() semblable à contains()
+#include <string.h>
 #include <unistd.h>  // pour utiliser read(), close(), write()
 #include <sys/types.h> // pour utiliser open()
 #include <sys/stat.h> // pour utiliser open()
@@ -41,8 +44,10 @@
 #include <ctype.h>  //pour isdigit
 #include <semaphore.h> //pour semaphore
 #include <pthread.h>  //pour les threads 
+#include <errno.h> // pour utiliser erno
 #include "sha256.h"
 #include "reverse.h"
+
 
 
 // Valeurs par défaut
@@ -56,6 +61,9 @@ int nbreSlotHashRempli = 0;
 int nbreSlotMdpRempli = 0;
 char* fichierSortie;
 int CalculExecution = 0; 	// true tant que tous les threads de calcul n'ont pas fini
+
+
+
 // Déclaration d'un tableau de pointeurs contenant les noms des fichiers d'entrée
 char** fichiersEntree; 
 
@@ -79,8 +87,7 @@ typedef struct hash
 // Déclaration d'un tableau de pointeur de hash
 hash** tab_hash;
 
-// Déclaration d'un tableau de pointeur de mot de passe 
-char** tab_mdp;
+
 
 
 // Constantes
@@ -215,7 +222,7 @@ int freeLinkedList(node **head)
 {
 	if(head == NULL)
 	{
-		fprintf(stderr, "**head non spécifié dans insert() \n");
+		fprintf(stderr, "**head non spécifié dans freeLinkedList() \n");
 		return -1;
 	}
 
@@ -244,6 +251,7 @@ int freeLinkedList(node **head)
 */
 int printList(node** head)
 {
+	printf("Début printList() \n");
 	if(head == NULL) // argument vide
 	{
 		fprintf(stderr, "**head non spécifié dans printList() \n");
@@ -257,21 +265,23 @@ int printList(node** head)
 
 	if(sortieStandard == 1) // si il faut écrire sur la sortie standard
 	{
+		printf("Début printList() dans le cas ou il faut ecrire sur la sortie standard \n");
 		node* runner = *head;
 		while(runner != NULL)
 		{
 			printf("%s \n",runner->mdp);
 			runner = runner->next;
 		}
-		return 0;
 	}
 	else // si il faut écrire dans le fichier @fichierSortie
 	{
+		printf("Début printList() dans le cas ou il faut ecrire dans un fichier de sortie \n");
 
-		int fd = open(fichierSortie,O_RDONLY|O_CREAT,O_RDONLY);
-		if(fd ==-1)// cas ou open a planté
+		FILE* fichier = fopen(fichierSortie, "w+");
+		if(fichier == NULL) // cas où @fopen() a planté
 		{
-		    return -1;
+			printf("Erreur dans l'ouverture du fichier: %s\n", strerror(errno));
+			return -1;
 		}
 		
 		node* runner = *head;
@@ -280,32 +290,24 @@ int printList(node** head)
 		int err;
 		while(runner != NULL)
 		{
-			buf = malloc(sizeof(runner->mdp));
-			if(buf == NULL) // cas où malloc a planté
-			{
-				fprintf(stderr, "Erreur allocation de mémoire pour @buf dans printList() \n");
-				return -1;
-			}
-			strcpy(buf,runner->mdp);
-			err = (int) write(fd, buf, sizeof(runner->mdp));
-			if(err == -1)
-			{
-				fprintf(stderr, "Erreur dans write() \n");
-				return -1;
-			}
+
+			fputs(runner->mdp,fichier);
+			fputs(&RETOUR_LIGNE,fichier);
 			//printf("%s \n",runner->mdp);
 			runner = runner->next;
-			free(buf);
 		}
+	
+		fclose(fichier);
 
-		if(close(fd) ==-1)
+		if(fclose(fichier) !=0)
 		{
-			fprintf(stderr, "Erreur fermeture du fichier dans printList() \n");
+			fprintf(stderr, "Erreur fermeture dans printList(): %s\n", strerror(errno));
 		    	return -1;
 		}
-		printf("Fin printList() \n");
-		return 0;
+		
 	}
+	printf("Fin printList() \n");
+	return 0;
 }	
 
 /* ---------------------------------------------- */
@@ -385,7 +387,7 @@ int insertInList(char* mdp)
 
 /*--------------------------------------------------------------*/
 
-/** La fonction comparateur est le consommateur du producteur reverse hash
+/** La fonction insert_mdp est le consommateur du producteur reverse hash
 	@pre - 
 	@post - ajuste la liste chaînée
 */
@@ -426,7 +428,7 @@ void* insert_mdp()
 			return (void*) EXIT_FAILURE;
 		}
 	}
-	printf("Fin comparateur \n");
+	printf("Fin insert_mdp() \n");
 	return EXIT_SUCCESS;
 }
 
@@ -608,6 +610,7 @@ void *lectureFichier(void * fichier)
 		- retourn EXIT_FAILURE si une erreur se produit
 */
 int main(int argc, char *argv[]) {
+	clock_t begin = clock(); // Démarrer le chronomètre
 
 
 /* 1e étape :  lecture des arguments de la commande de l'exécutable [FAIT]*/
@@ -633,7 +636,7 @@ int main(int argc, char *argv[]) {
 				break;
 			case 'o':
 				sortieStandard = 0;
-				char* fichierSortie = optarg;
+				fichierSortie = optarg;
 				printf("-o spécifié : %s\n",fichierSortie);
 				index+=2;
 				break;
@@ -815,8 +818,16 @@ int main(int argc, char *argv[]) {
 	/* 6e étape : quand tous les threads ont fini de s'executer, affiche sur stdout ou écrit dans
 	FICHIEROUT la liste chainée qu'il reste
 	*/
-	printf("Début printList() \n");
-	printList(head);
+
+
+	if(printList(head) == -1)
+	{
+		printf("Erreur dans printList() \n");
+	}
+
+	clock_t end = clock(); // Arrêter le chronomètre
+	double temps = (double)(end - begin) / CLOCKS_PER_SEC;
+	printf("Le programme a pris %lf secondes à s'exécuter. \n",temps);
         printf ("\n \n \nFin du programme...\n");
         return EXIT_SUCCESS;
 
