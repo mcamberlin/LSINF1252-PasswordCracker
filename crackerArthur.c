@@ -44,7 +44,7 @@ const char RETOUR_LIGNE = '\n';
 #include <ctype.h>  //pour isdigit
 #include <semaphore.h> //pour semaphore
 #include <pthread.h>  //pour les threads 
-#include <errno.h> // pour utiliser erno
+#include <errno.h> // pour utiliser errno
 #include "sha256.h"
 #include "reverse.h"
 
@@ -512,7 +512,7 @@ void* reverse_hash()
 		}
 		CalculExecution--;
 	}
-	printf("fin affiche_hash \n");
+	printf("fin reverse_hash \n");
 	return EXIT_SUCCESS;
 }
 
