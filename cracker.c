@@ -5,11 +5,11 @@
 	Auteurs:
 		- CAMBERLIN Merlin
 		- PISVIN Arthur
-	Version: 04-05-19 - Fusion de crackerArthur + ajout commande pour écrire dans un fichier sortie
+	Version: 05-05-19 - Implémentation de la lecture de plusieurs fichiers binaires d'entée.
 
 	Commandes à indiquer dans le shell:
 		- cd ~/Documents/LSINF1252-PasswordCracker-Gr118-2019
-		- gcc cracker.c reverse.c sha256.c -o cracker -lpthread 
+		- gcc cracker.c reverse.c sha256.c -o cracker -lpthread -Wall -Werror
 		- ./cracker -t 5 -o "output.txt" test-input/02_6c_5.bin
 		- echo -n monString | sha256sum
 
@@ -19,6 +19,7 @@
 		- git commit -m "blablabla" monfichier
 		- git commit -i -m "blablabla" monfichier // en cas de fusion de conflits
 		- git push
+
 	Remarques:
 		- Ne pas oublier de faire les docstring à chaque fois
 		- A chaque malloc, ne pas oublier en cas d'erreur
@@ -282,8 +283,6 @@ int printList(node** head)
 		
 		node* runner = *head;
 
-		void* buf;
-		int err;
 		while(runner != NULL)
 		{
 
@@ -516,82 +515,112 @@ void* reverse_hash()
 
 /*-------------------Lecture de fichier ----------------------------*/
 
-/** La fonction lectureFichier() lis par 32 bytes le fichier binaire @fichier et rempli au fur et à mesure la ressource @tab_hash de hash. 
-	@pre - fichier = pointeur vers le fichier à lire
-	@post   - retourne 0 si la lecture et l'ajout s'est réalisé avec succès, EXIT_FAILURE sinon
+/** La fonction lectureFichier() lis par 32 bytes le(s) fichier(s) binaire(s) dans @fichiersEntree et remplit au fur et à mesure la ressource @tab_hash de hash. 
+	@pre - 
+	@post   - retourne EXIT_SUCCESS si la lecture et l'ajout s'est réalisé avec succès, EXIT_FAILURE sinon
 */
-void *lectureFichier(void * fichier)
+void *lectureFichier()
 {
-	int fd = open((char*)fichier, O_RDONLY);
-	if(fd ==-1)
+	for(int i=0; i<nbreFichiersEntree;i++)
 	{
-		fprintf(stderr, "Erreur d'ouverture dans lectureFichier() \n");
-		return (void*) EXIT_FAILURE;
-	}
+		fin_de_lecture = 0;
 
-	hash* ptr = (hash*) malloc(sizeof(hash));
-	if(ptr==NULL)
-	{
-		fprintf(stderr, "Erreur malloc allocation mémoire ptr dans lectureFichier()\n");
-		close(fd);
-		return (void*) EXIT_FAILURE;
-	}
-
-	int r = read(fd, ptr,sizeof(hash));
-	if(r==-1)
-	{
-		fprintf(stderr, "Erreur de lecture dans lectureFichier() \n");
-		free(ptr);
-		close(fd);
-		return (void*) EXIT_FAILURE;
-	}
-
-	while(!fin_de_lecture) //tant que la lecture du fichier binaire @fichier n'est pas terminée
-	{
-		//Début section critique
-		sem_wait(&empty_hash);
-		pthread_mutex_lock(&mutex_hash);
-
-		// Chercher de la place dans le tableau pour ajouter
-		int place_trouvee = 0;
-		for(int i=0; i<N  && !place_trouvee; i++)
+		// Déterminer le nombre maximal de threads de calcul
+		char* fichier = (char*) malloc(sizeof(fichiersEntree[i])); 
+		if(fichier==NULL)
 		{
-			if(*(tab_hash+i)==NULL) //si la case est vide
+			fprintf(stderr, "Erreur allocation mémoire pour fichier\n");
+			return (void*) EXIT_FAILURE;
+		}
+		strcpy(fichier,fichiersEntree[i]); 
+		
+		struct stat stat_fichier;
+		if(stat(fichier, &stat_fichier)==-1)
+		{
+			fprintf(stderr, "Erreur stat fichier\n");
+			return (void*) EXIT_FAILURE;
+		}
+		int nbre_de_hash = (stat_fichier.st_size)/32;
+		if(nbre_de_hash<nbreThreadsCalcul) // Si le nbre threads de calcul > nbre de hash, alors, nbre threads de calcul = nbre hash
+		{
+			nbreThreadsCalcul = nbre_de_hash;
+			N = nbreThreadsCalcul*2;
+		}
+
+		// Ouvrir le ième fichier binaires
+		int fd = open((char*)fichier, O_RDONLY);
+		if(fd ==-1)
+		{
+			fprintf(stderr, "Erreur d'ouverture dans lectureFichier() \n");
+			return (void*) EXIT_FAILURE;
+		}
+
+		hash* ptr = (hash*) malloc(sizeof(hash));
+		if(ptr==NULL)
+		{
+			fprintf(stderr, "Erreur malloc allocation mémoire ptr dans lectureFichier()\n");
+			close(fd);
+			return (void*) EXIT_FAILURE;
+		}
+
+		int r = read(fd, ptr,sizeof(hash));
+		if(r==-1)
+		{
+			fprintf(stderr, "Erreur de lecture dans lectureFichier() \n");
+			free(ptr);
+			close(fd);
+			return (void*) EXIT_FAILURE;
+		}
+
+		while(!fin_de_lecture) //tant que la lecture du fichier binaire @fichier n'est pas terminée
+		{
+			//Début section critique
+			sem_wait(&empty_hash);
+			pthread_mutex_lock(&mutex_hash);
+
+			// Chercher de la place dans le tableau pour ajouter
+			int place_trouvee = 0;
+			for(int i=0; i<N  && !place_trouvee; i++)
 			{
-				place_trouvee=1;
-				hash* ptrhash = (hash*) malloc(sizeof(hash));
-				if(ptrhash == NULL)
+				if(*(tab_hash+i)==NULL) //si la case est vide
 				{
-					fprintf(stderr, "Erreur malloc allocation mémoire ptrhash dans lectureFichier() \n");
-					close(fd);
-					free(ptr);
-					return (void*) EXIT_FAILURE;
+					place_trouvee=1;
+					hash* ptrhash = (hash*) malloc(sizeof(hash));
+					if(ptrhash == NULL)
+					{
+						fprintf(stderr, "Erreur malloc allocation mémoire ptrhash dans lectureFichier() \n");
+						close(fd);
+						free(ptr);
+						return (void*) EXIT_FAILURE;
+					}
+					memcpy(ptrhash, ptr, sizeof(hash));
+					*(tab_hash+i)=ptrhash;
+					printf("L'adresse dans tab_hash est : %p à l'indice %d (lecture)\n", *(tab_hash+i), i);
+					
+					nbreSlotHashRempli++;
 				}
-				memcpy(ptrhash, ptr, sizeof(hash));
-				*(tab_hash+i)=ptrhash;
-				printf("L'adresse dans tab_hash est : %p à l'indice %d (lecture)\n", *(tab_hash+i), i);
-				
-				nbreSlotHashRempli++;
+			}
+
+			// Fin section critique
+			pthread_mutex_unlock(&mutex_hash);
+			sem_post(&full_hash);
+
+			//lecture du hash suivant
+			r = read(fd, ptr, sizeof(hash));
+			if(r==0)
+			{
+				// pthread_mutex_lock(&mutex_hash); //Me - utilité ?
+				printf("le nombre de bytes restant est %d\n", r);
+				fin_de_lecture=1;
+				// pthread_mutex_unlock(&mutex_hash); //Me - utilité ?
 			}
 		}
-
-		// Fin section critique
-		pthread_mutex_unlock(&mutex_hash);
-		sem_post(&full_hash);
-
-		//lecture du hash suivant
-		r = read(fd, ptr, sizeof(hash));
-		if(r==0)
-		{
-			// pthread_mutex_lock(&mutex_hash); //Me - utilité ?
-			printf("le nombre de bytes restant est %d\n", r);
-			fin_de_lecture=1;
-			// pthread_mutex_unlock(&mutex_hash); //Me - utilité ?
-		}
+		free(ptr);
+		close(fd);
+		printf("Fin de la lecture du %d ème fichier dans lectureFichier()\n",i+1);
 	}
-	free(ptr);
-	close(fd);
-	printf("fin lectureFichier()\n");
+
+	printf("Fin de la lecture lectureFichier()\n");
 	return EXIT_SUCCESS;
 }
 
@@ -651,29 +680,6 @@ int main(int argc, char *argv[])
 		}
 	}
 	printf("\t\t\t Fin de l'interprétation des commandes \n\n");
-
-	// !!! Considération de plusieurs fichiers binaires en entrée
-
-	char* fichier = (char*) malloc(sizeof(argv[index-1])); 
-	if(fichier==NULL)
-	{
-		fprintf(stderr, "Erreur allocation mémoire pour nomFichier\n");
-		return EXIT_FAILURE;
-	}
-	strcpy(fichier,argv[index-1]); // CHANGER POUR PLUSIEURS FICHIERS
-
-	// Si le nombre de thread de calcul est supérieur au nombre de hash, on fixe le nombre de thread de calcul au nombre de hash
-	struct stat stat_fichier;
-	if(stat(fichier, &stat_fichier)==-1)
-	{
-		fprintf(stderr, "Erreur stat fichier\n");
-	}
-	int nbre_de_hash = (stat_fichier.st_size)/32;
-	if(nbre_de_hash<nbreThreadsCalcul)
-	{
-		nbreThreadsCalcul = nbre_de_hash;
-		N = nbreThreadsCalcul*2;
-	}
 
 	// Initialisation du mutex et des sémaphores pour tab_hash
 	
@@ -752,7 +758,7 @@ int main(int argc, char *argv[])
 	pthread_t calculateur[nbreThreadsCalcul];
 	pthread_t comparateur;
 
-	if(pthread_create(&lecteur, NULL, &lectureFichier, (void*) fichier) !=0) // cas où pthread_create() a planté
+	if(pthread_create(&lecteur, NULL, &lectureFichier, (void*) NULL) !=0) // cas où pthread_create() a planté
 	{
 		fprintf(stderr, "Erreur pthread_create 1\n");
 		return EXIT_FAILURE;
