@@ -31,14 +31,6 @@
 		- Si le nombre de thread de calcul est supérieur au nombre de hash, on fixe le nombre de thread de calcul au nombre de hash contenu dans le fichier
 */
 
-// CONSTANTES dans le préprocesseurs
-#define LENPWD 16 // Nbre maximal de caractères dans les mots de passes originels
-
-// CONSTANTES
-const char RETOUR_LIGNE = '\n';
-const char CONSONNES[] = {'b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z'};
-const char VOYELLES[] = {'a','e','i','o','u','y'};
-
 // Includes
 #include <stdio.h> 		// pour utiliser fopen(), fputs(), fclose()
 #include <stdlib.h>
@@ -53,173 +45,10 @@ const char VOYELLES[] = {'a','e','i','o','u','y'};
 #include "reverse.h"
 
 // Includes pour utiliser nos fonctions
+#include "variables.h"
 #include "insert.h" 		
 #include "reverse_hash.h" 	
 #include "lectureFichier.h"
-
-
-
-// Valeurs par défaut
-int nbreThreadsCalcul = 1;
-int N = 2;			// Le nombre de slot du buffer
-int critereVoyelles = 1;	// true
-int sortieStandard = 1;		// true
-int nbreFichiersEntree = 1;	// Entier comptant le nombre de fichiers binaires donnés en entrée
-char* fichierSortie;		// Pointeur vers le nom du fichier de sortie si -o est spécifié
-char** fichiersEntree; 		// Tableau de pointeurs vers les fichiers d'entrée
-int occurenceVoyelles=0;	// Entier du nbre maximal d'occurences de voyelles dans un mdp
-int occurenceConsonnes=0;	// Entier du nbre maximal d'occurences de consonnes dans un mdp
-
-// Valeurs initiales
-int fin_de_lecture = 0;       	// Initialement à false
-int nbreSlotHashRempli = 0;	// Initialement à 0
-int nbreSlotMdpRempli = 0;	// Initialement à 0
-int CalculExecution = 0; 	// Cette variable est un booléen qui permet de savoir si des calculs sont en cours d'exécution
-
-
-// Initialisation du mutex et des 2 sémaphores pour protéger la ressource tab_hash
-pthread_mutex_t mutex_hash;
-sem_t empty_hash; 
-sem_t full_hash; 
-
-/* declare dans un header
-// Déclaration d'une structure représentant un hash  
-typedef struct hash
-{
-	char hash[32]; // 1 hash = 32 bytes et 1char = 1 byte
-}hash;
-*/
-
-// Déclaration d'un tableau de pointeurs de hash
-hash** tab_hash;
-
-
-
-// Initialisation du mutex et des 2 sémaphores pour protéger la ressource tab_mdp
-pthread_mutex_t mutex_mdp;
-sem_t empty_mdp; 
-sem_t full_mdp; 
-
-// Déclaration d'un tableau de pointeurs de mots de passe 
-char** tab_mdp;
-
-/* deja declare dans uun header
-// Déclaration d'une structure représentant un noeud de la simple liste chaînée
-typedef struct node
-{
-    char mdp[LENPWD];
-    struct node *next;
-}node;
-*/
-// Déclaration d'une la liste simplement chainée
-node** head;
-
-
-
-
-/*--------------------------------------------------------------*/
-
-/** La fonction freeLinkedList() libère la mémoire associée à la liste chaînée passée en argument
-	@pre 	- @head = un pointeur vers le pointeur head. Si @head == NULL, retourne -1
-	@post 	- 0 si la suppression de la liste chaînée s'est réalisée avec succès, -1 sinon
-*/
-int freeLinkedList(node **head) 
-{
-	if(head == NULL)
-	{
-		fprintf(stderr, "**head non spécifié dans freeLinkedList() \n");
-		return -1;
-	}
-
-	if(*head == NULL) // cas où la liste est vide
-	{
-		return 1;
-	}
-	else // cas où la liste n'est pas vide
-	{
-		node* runner = *head; // noeud courant
-		node* previous;	// noeud précédent
-
-		while(runner !=NULL)
-		{
-			previous = runner;
-			runner = runner->next;		
-			free(previous);	
-		}
-		*head = NULL;
-		return 0;
-	}
-}
-
-/** La fonction printList() affiche les mdp contenus dans la liste chainée soit sur la sortie standard, soit dans un fichier @fichierSortie 
-	@pre - @head = un pointeur vers le pointeur head. Si @head == NULL, retourne -1
-	@post - 0 si l'affichage de la liste chaînée s'est réalisée avec succès, -1 sinon
-
-*/
-int printList(node** head)
-{
-	if(head == NULL) 
-	{
-		fprintf(stderr, "**head non spécifié dans printList() \n");
-		return -1;
-	}
-	if(*head == NULL) // cas où la liste est vide
-	{
-		fprintf(stderr, "La liste chaînée de mdp est vide \n");
-		return 0;
-	}
-
-	if(sortieStandard == 1) // cas où il faut écrire sur la sortie standard
-	{
-		node* runner = *head;
-		while(runner != NULL)
-		{
-			printf("%s \n",runner->mdp);
-			runner = runner->next;
-		}
-		return 0;
-	}
-	else // cas où il faut écrire dans le fichier @fichierSortie
-	{
-
-		printf("Début printList() dans le cas ou il faut ecrire dans un fichier de sortie \n");
-
-		FILE* fichier = fopen(fichierSortie, "w+");
-		if(fichier == NULL) // cas où @fopen() a planté
-		{
-			printf("Erreur dans l'ouverture du fichier: \n");
-			return -1;
-		}
-		
-		node* runner = *head;
-
-		while(runner != NULL)
-		{
-
-			fputs(runner->mdp,fichier);
-			fputs(&RETOUR_LIGNE,fichier);
-			//printf("%s \n",runner->mdp);
-			runner = runner->next;
-		}
-	
-		fclose(fichier);
-		if(fclose(fichier) !=0)
-		{
-			fprintf(stderr, "Erreur fermeture dans printList()\n");
-		    	return -1;
-		}
-		
-	}
-	printf("Fin printList() \n");
-	return 0;
-}	
-
-
-
-
-
-
-
 
 
 
@@ -236,6 +65,25 @@ int printList(node** head)
 int main(int argc, char *argv[]) 
 {
 	clock_t begin = clock(); // Démarrer le chronomètre
+
+	nbreThreadsCalcul = 1;
+	N = 2;			// Le nombre de slot du buffer
+	critereVoyelles = 1;	// true
+	sortieStandard = 1;		// true
+	nbreFichiersEntree = 1;	// Entier comptant le nombre de fichiers binaires donnés en entrée
+			// Pointeur vers le nom du fichier de sortie si -o est spécifié
+ 		// Tableau de pointeurs vers les fichiers d'entrée
+	occurenceVoyelles=0;	// Entier du nbre maximal d'occurences de voyelles dans un mdp
+	occurenceConsonnes=0;	// Entier du nbre maximal d'occurences de consonnes dans un mdp
+
+// Valeurs initiales
+	fin_de_lecture = 0;       	// Initialement à false
+	nbreSlotHashRempli = 0;	// Initialement à 0
+	nbreSlotMdpRempli = 0;	// Initialement à 0
+	CalculExecution = 0; 	// Cette variable est un booléen qui permet de savoir si des calculs sont en cours d'exécution
+
+
+
 	printf("\n \t\t\t Interprétation des commandes \n");
 	int opt;
 	int index = 1; // index des fichiers binaires

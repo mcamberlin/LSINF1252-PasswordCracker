@@ -8,9 +8,11 @@
 #include <fcntl.h>   		// pour utiliser open()
 #include <semaphore.h> 		// pour les sémaphores
 #include <pthread.h>  		// pour les threads 
+#include "variables.h"
 #include "lectureFichier.h"
 #include "insert.h"
 #include "lectureFichier.h"
+
 
 /*-------------------Lecture de fichier ----------------------------*/
 
