@@ -3,7 +3,10 @@ FLAG1 = -Wall # Activer tous les warnings
 FLAG2 = -Werror # Considérer tous les warnings comme des erreurs
 FLAG_THREAD = -lpthread
 
-all: craker.c reverse.h sha256.h   	 	
+cracker:
+	gcc -o cracker cracker.c reverse.c sha256.c -Wall -Werror -lpthread
+
+all: craker.c reverse.h sha256.h
 	@echo "Cible make \n"
 	$(CompilateurC) -o cracker craker.c reverse.c sha256.c $(FLAG_THREAD) $(FLAG1) $(FLAG2)  
 	
