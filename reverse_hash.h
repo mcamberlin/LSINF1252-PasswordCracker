@@ -1,0 +1,2 @@
+void* reverse_hash();
+

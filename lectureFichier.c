@@ -1,8 +1,21 @@
+// Includes
+#include <stdio.h> 		// pour utiliser fopen(), fputs(), fclose()
+#include <stdlib.h>
+#include <string.h> 
+#include <unistd.h>  		// pour utiliser read(), close()
+#include <sys/types.h> 		// pour utiliser open()
+#include <sys/stat.h> 		// pour utiliser open()
+#include <fcntl.h>   		// pour utiliser open()
+#include <semaphore.h> 		// pour les sémaphores
+#include <pthread.h>  		// pour les threads 
+
+/*-------------------Lecture de fichier ----------------------------*/
+
 /** La fonction lectureFichier() lis par 32 bytes le(s) fichier(s) binaire(s) dans @fichiersEntree et remplit au fur et à mesure la ressource @tab_hash de hash. 
 	@pre - 
 	@post   - retourne EXIT_SUCCESS si la lecture et l'ajout s'est réalisé avec succès, EXIT_FAILURE sinon
 */
-void *lectureFichier(void* struct_arg)
+void *lectureFichier()
 {
 	for(int i=0; i<nbreFichiersEntree;i++)
 	{

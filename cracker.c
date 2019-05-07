@@ -8,7 +8,7 @@
 
 	Commandes à indiquer dans le shell:
 		- cd ~/Documents/LSINF1252-PasswordCracker-Gr118-2019
-		- gcc cracker.c reverse.c sha256.c -o cracker -lpthread -Wall -Werror
+		- gcc cracker.c reverse.c sha256.c lectureFichier.c reverse_hash.c insert.c -o cracker -lpthread -Wall -Werror
 		- ./cracker -t 5 -o "output.txt" test-input/02_6c_5.bin
 		- echo -n monString | sha256sum
 
@@ -51,6 +51,12 @@ const char VOYELLES[] = {'a','e','i','o','u','y'};
 #include <pthread.h>  		// pour les threads 
 #include "sha256.h"
 #include "reverse.h"
+
+// Includes pour utiliser nos fonctions
+#include "insert.h" 		
+#include "reverse_hash.h" 	
+#include "lectureFichier.h"
+
 
 
 // Valeurs par défaut
@@ -106,104 +112,6 @@ typedef struct node
 node** head;
 
 
-/*--------------------------------------------------------------*/
-
-/** La fonction count_consonants() compte le nombre de consommes dans une chaine de caractères
-	@pre - @monString = un pointeur vers une chaîne de caractères dont on souhaite compter le nombre de consonnes
-	@post - retourne le nombre de consonnes dans @monString
-
-*/
-int count_consonants(char* monString)
-{
-	int nbreConsonnes = 0;
-	int j=0;
-	for(int i=0;*(monString+i) !='\0';i++) // tant que on a pas vérifié chaque lettre de @monString
-	{
-		j=0;
-		while(j<20 && *(monString+i) != CONSONNES[j]) // tant que on a pas vérifié toutes les consonnes de @CONSONNES
-		{
-			j++;
-		}
-		if(j<20 && *(monString+i) == CONSONNES[j]) // j<20 sinon on risque de dépasser la longueur du tableau @CONSONNES
-		{
-			nbreConsonnes++;
-		}
-	}
-	return nbreConsonnes;
-}
-
-
-/*--------------------------------------------------------------*/
-
-/** La fonction count_vowels() compte le nombre de voyelles dans une chaine de caractères
-	@pre - @monString = un pointeur vers une chaîne de caractères dont on souhaite compter le nombre de voyelles
-	@post - retourne le nombre de voyelles dans @monString
-
-*/
-int count_vowels(char* monString)
-{
-	int nbreVoyelles = 0;
-	int j=0;
-	for(int i=0;*(monString+i) != '\0';i++)// tant que on a pas vérifié chaque lettre de @monString
-	{
-		j=0;
-		while(j<6 && *(monString+i) != VOYELLES[j]) // tant que on a pas vérifié toutes les voyelles
-		{
-			j++;
-		}
-		if(j<6 && *(monString+i) == VOYELLES[j]) // j<6 sinon on risque de dépasser la longueur du tableau @VOYELLES
-		{
-			nbreVoyelles++;
-		}
-	}
-	return nbreVoyelles;
-}
-
-
-/*--------------------------------------------------------------*/
-
-/** La fonction insert() insére dans une simple liste chainée, en tête de liste, un élément.
-	@pre 	- @head = un pointeur vers le premier noeud de la liste chainée. Si @head == NULL, retourne -1
-		- @value = un tableau de caractère représentant le mdp à insérer dans la simple liste chainée
-	@post 	- 0 si l'insertion dans la liste chaînée s'est réalisée avec succès, -1 sinon
-*/
-int insert(node **head, char val[]) 
-{
-	if(head == NULL)
-	{
-		fprintf(stderr, "**head non spécifié dans insert() \n");
-		return -1;
-	}
-
-	if(*head == NULL) // cas où la liste est vide
-	{
-		node* newNode = (node*) malloc(sizeof(node)); 
-		if(newNode == NULL)
-		{
-			fprintf(stderr, "Erreur allocation de mémoire newNode dans le cas d'une liste vide dans insert() \n");
-			return -1;
-		}
-
-		strcpy(newNode->mdp,val); // copie dans @newNode la chaine de caractères @val 
-		newNode->next = NULL;
-		*head = newNode;
-		return 0;
-	}
-	else // cas où la liste n'est pas vide
-	{
-		// Insertion en tête de liste
-        	node* newNode = (node*) malloc(sizeof(node)); 
-        	if(newNode == NULL)
-		{
-			fprintf(stderr, "Erreur allocation de mémoire de newNode dans le cas d'une liste NON vide dans insert() \n");
-			return -1;
-		}
-		strcpy(newNode->mdp,val); // copie dans @newNode la chaine de caractères @val 
-        	newNode->next = *head;
-        	*head = newNode;
-        	return 0;
-	}    
-}
 
 
 /*--------------------------------------------------------------*/
@@ -249,7 +157,7 @@ int printList(node** head)
 {
 	if(head == NULL) 
 	{
-		fprintf(stderr, "**head non spécifié dans printList() \n");
+		fprintf(stdeheadrr, "**head non spécifié dans printList() \n");
 		return -1;
 	}
 	if(*head == NULL) // cas où la liste est vide
@@ -303,127 +211,6 @@ int printList(node** head)
 	return 0;
 }	
 
-/** La fonction insertInList() compare le nombre d'occurences soit de voyelles, soit de consonnes dans la chaîne de caractères @mdp avec le nombre d'occurences maximal mis à jour au fur et à mesure en variable globale. 
-Si le nbre d'occurences de voyelles ou consonnes est respectivement supérieur à @occurenceVoyelles, @occurenceConsonnes, alors, la liste chainée actuelle est libérée et une nouvelle est créée pour y placer @mdp.
-Si le nbre d'occurences de voyelles ou consonnes est respectivement égal @occurenceVoyelles, @occurenceConsonnes, alors, la liste chainée actuelle est maintenue et @mdp est inséré en tête de liste.
-Si le nbre d'occurences de voyelles ou consonnes est respectivement inférieur @occurenceVoyelles, @occurenceConsonnes, alors, rien est effectué.
-
-	@pre - @head = un pointeur vers le pointeur head. Si @head == NULL, retourne -1
-	@post - 0 si l'ajout de @mdp dans la liste chaînée s'est réalisé avec succès, -1 sinon
-
-*/
-int insertInList(char* mdp)
-{
-	if(critereVoyelles == 1) // cas où le critère de sélection des mdp sont les voyelles
-	{
-		int vowels = count_vowels(mdp);
-		if(vowels==occurenceVoyelles) // cas où le mdp contient le même nombre de voyelles que les précédents
-		{
-			// Insertion du mdp en tête dans la liste chainée
-			if(insert(head,mdp) ==-1)
-			{
-				return -1;
-			}
-
-		}
-		if(vowels>occurenceVoyelles)
-		{
-			occurenceVoyelles = vowels;
-			if(freeLinkedList(head) ==-1) // Libération de toute la liste chainée
-			{
-				return -1;
-			}
-
-			if(insert(head,mdp) ==-1) 
-			{
-				return -1;
-			}
-
-		}
-		//if(vowels<occurenceVoyelles)// cas ou le mdp contient moins de voyelles que les précédents
-		//{ ne pas ajouter le mdp }
-
-
-	}
-	else // cas où le critère de sélection des mdp sont les consonnes
-	{
-		int consonants = count_consonants(mdp);
-		if(consonants==occurenceConsonnes) // cas où le mdp contient le même nombre de consonnes que les précédents
-		{
-			// Insertion du mdp en tête dans la liste chainée
-			if(insert(head,mdp) ==-1)
-			{
-				return -1;
-			}
-		}
-		if(consonants>occurenceConsonnes)
-		{
-			occurenceConsonnes = consonants;
-			if(freeLinkedList(head) ==-1)// Libération de toute la liste chainée
-			{
-				return -1;
-			}
-
-			if(insert(head,mdp) ==-1)// Insertion du mdp en tête dans la liste chainée
-			{
-				return -1;
-			}
-
-		}
-		//if(consonants<occurenceConsonnes)// cas ou le mdp contient moins de consonnes que les précédents
-		//{ ne pas ajouter le mdp }
-	}
-	return 0;
-}
-
-/** La fonction insert_mdp() prend un un mot de passe en clair contenu dans la ressource @tab_mdp et l'insère dans la liste simple liste chainée.
-	@pre - 
-	@post - retourne EXIT_SUCESS si l'ajout s'est réalisé avec succès, EXIT_FAILURE sinon
-*/
-void* insert_mdp()
-{
-	while(!fin_de_lecture || nbreSlotHashRempli || nbreSlotMdpRempli || CalculExecution) 
-/* tant que la lecture des fichiers binaires n'est pas finie ou 
-que il y a encore des hashs dans la ressource @tab_hash ou 
-que il y a encore des mdp en clair dans la ressource @tab_mdp ou
-que des threads sont en cours d'exécution
-*/
-	{
-		printf("nbreSlotHashRempli : %d, nbreSlotMdpRempli: %d, CalculExecution : %d \n",nbreSlotHashRempli,nbreSlotMdpRempli,CalculExecution);
-		char* mdp;
-
-		sem_wait(&full_mdp);
-		pthread_mutex_lock(&mutex_mdp);
-
-		printf("section critique insert_mdp\n");
-
-		int conditionArret=0; // Condition nécessaire pour arrêter de parcourir le tableau une fois qu'un slot rempli a été trouvé
-
-		for(int i=0; i<N && !conditionArret; i++)
-		{
-			if(*(tab_mdp+i)!=NULL) // cas où la case est remplie
-			{
-				conditionArret = 1;
-				mdp = (char*) *(tab_mdp+i);
-				*(tab_mdp+i)=NULL;
-				nbreSlotMdpRempli--;
-			}
-		}
-
-		pthread_mutex_unlock(&mutex_mdp);
-		sem_post(&empty_mdp);
-
-		printf("le mot de passe à insérer dans tab_mdp est %s\n", mdp);
-
-		if(insertInList(mdp)==-1)
-		{
-			fprintf(stderr, "Erreur insertion mot de passe dans tab_mdp\n");
-			return (void*) EXIT_FAILURE;
-		}
-	}
-	printf("Fin insert_mdp() \n");
-	return EXIT_SUCCESS;
-}
 
 
 
@@ -431,198 +218,8 @@ que des threads sont en cours d'exécution
 
 
 
-/*--------------------------------------------------------------*/
-
-/** La fonction reverse_hash() est le consommateur du 1er producteur-consommateur et prend un hash contenu dans la ressource @tab_hash et calcul son inverse avec reversehash() et insère son résultat dans la ressource @tab_mdp.
-	@pre - 
-	@post - retourne EXIT_SUCCESS si l'ajout dans @tab_mdp du résultat de reversehash() s'est réalisé avec succès, EXIT_FAILURE sinon
-*/
-void* reverse_hash()
-{
-	while(!fin_de_lecture || nbreSlotHashRempli)
-	// Tant que la lecture du fichier n'est pas finie ou que la ressouce @tab_hash n'est pas vide.
-	{
-		CalculExecution++;
-		char* mdp = (char*) malloc(sizeof(char)*LENPWD);
-		if(mdp == NULL)
-		{
-			fprintf(stderr, "Erreur allocation mémoire mdp dans affiche_hash\n");
-			return (void*) EXIT_FAILURE;
-		}
-
-		uint8_t* hash;
-		// début section critique
-		sem_wait(&full_hash);
-		pthread_mutex_lock(&mutex_hash);
-		
-		int conditionArret = 0; // Condition nécessaire pour arrêter de parcourir le tableau une fois qu'un slot rempli a été trouvé
-		for(int i=0; i<N && !conditionArret; i++)
-		{
-			if(*(tab_hash+i)!=NULL) // cas où la case est remplie
-			{
-				conditionArret = 1;
-				hash = (uint8_t*) *(tab_hash+i);
-				*(tab_hash+i)=NULL;
-				nbreSlotHashRempli--;
-			}
-		}
-
-		pthread_mutex_unlock(&mutex_hash);
-		sem_post(&empty_hash);
-		// fin section critique
-
-		printf("début reversehash() \n");
-		if( reversehash(hash, mdp, LENPWD) ) // cas où reversehash() a trouvé le mdp originel
-		{
-			printf("\nle hash affiché grace à reverse_hash est %s\n\n", mdp);
-			
-			// début section critique
-			printf("Début section critique producteur reversehash() \n");
-			sem_wait(&empty_mdp);
-			pthread_mutex_lock(&mutex_mdp);
-
-			// Chercher de la place dans le tableau pour ajouter
-			int place_trouvee = 0;
-			for(int i=0; i<N  && !place_trouvee; i++)
-			{
-				if(*(tab_mdp+i)==NULL) //cas où la case est vide
-				{
-					place_trouvee = 1;
-					*(tab_mdp+i) = mdp;
-					printf("L'adresse dans tab_mdp est : %p à l'indice %d (reverse consommateur)\n", *(tab_mdp+i), i);
-					
-					nbreSlotMdpRempli++;
-				}
-			}
-
-			
-			// fin section critique
-			printf("Fin section critique producteur reversehash\n");
-			pthread_mutex_unlock(&mutex_mdp);
-			sem_post(&full_mdp);
-		}
-		else // cas où reversehash() n'a pas trouvé le mdp originel
-		{
-			printf("Pas de mot de passe en clair trouvé pour ce hash\n ");
-		}
-		CalculExecution--;
-	}
-	printf("fin reverse_hash() \n");
-	return EXIT_SUCCESS;
-}
 
 
-/*-------------------Lecture de fichier ----------------------------*/
-
-/** La fonction lectureFichier() lis par 32 bytes le(s) fichier(s) binaire(s) dans @fichiersEntree et remplit au fur et à mesure la ressource @tab_hash de hash. 
-	@pre - 
-	@post   - retourne EXIT_SUCCESS si la lecture et l'ajout s'est réalisé avec succès, EXIT_FAILURE sinon
-*/
-void *lectureFichier()
-{
-	for(int i=0; i<nbreFichiersEntree;i++)
-	{
-		fin_de_lecture = 0;
-
-		
-		char* fichier = (char*) malloc(sizeof(fichiersEntree[i])); 
-		if(fichier==NULL)
-		{
-			fprintf(stderr, "Erreur allocation mémoire pour fichier\n");
-			return (void*) EXIT_FAILURE;
-		}
-		strcpy(fichier,fichiersEntree[i]); 
-		
-		// Déterminer le nombre maximal de threads de calcul
-		struct stat stat_fichier;
-		if(stat(fichier, &stat_fichier)==-1)
-		{
-			fprintf(stderr, "Erreur stat fichier\n");
-			return (void*) EXIT_FAILURE;
-		}
-		int nbre_de_hash = (stat_fichier.st_size)/32;
-		if(nbre_de_hash<nbreThreadsCalcul) // Si le nbre threads de calcul > nbre de hash, alors, nbre threads de calcul = nbre hash
-		{
-			nbreThreadsCalcul = nbre_de_hash;
-			N = nbreThreadsCalcul*2;
-		}
-
-		// Ouvrir le ième fichier binaires
-		int fd = open((char*)fichier, O_RDONLY);
-		if(fd ==-1)
-		{
-			fprintf(stderr, "Erreur d'ouverture dans lectureFichier() \n");
-			return (void*) EXIT_FAILURE;
-		}
-
-		hash* ptr = (hash*) malloc(sizeof(hash));
-		if(ptr==NULL)
-		{
-			fprintf(stderr, "Erreur malloc allocation mémoire ptr dans lectureFichier()\n");
-			close(fd);
-			return (void*) EXIT_FAILURE;
-		}
-
-		int r = read(fd, ptr,sizeof(hash));
-		if(r==-1)
-		{
-			fprintf(stderr, "Erreur de lecture dans lectureFichier() \n");
-			free(ptr);
-			close(fd);
-			return (void*) EXIT_FAILURE;
-		}
-
-		while(!fin_de_lecture) //tant que la lecture du fichier binaire @fichier n'est pas terminée
-		{
-			//Début section critique
-			sem_wait(&empty_hash);
-			pthread_mutex_lock(&mutex_hash);
-
-			// Chercher de la place dans le tableau pour ajouter
-			int place_trouvee = 0;
-			for(int i=0; i<N  && !place_trouvee; i++)
-			{
-				if(*(tab_hash+i)==NULL) //si la case est vide
-				{
-					place_trouvee=1;
-					hash* ptrhash = (hash*) malloc(sizeof(hash));
-					if(ptrhash == NULL)
-					{
-						fprintf(stderr, "Erreur malloc allocation mémoire ptrhash dans lectureFichier() \n");
-						close(fd);
-						free(ptr);
-						return (void*) EXIT_FAILURE;
-					}
-					memcpy(ptrhash, ptr, sizeof(hash));
-					*(tab_hash+i)=ptrhash;
-					printf("L'adresse dans tab_hash est : %p à l'indice %d (lecture)\n", *(tab_hash+i), i);
-					
-					nbreSlotHashRempli++;
-				}
-			}
-
-			// Fin section critique
-			pthread_mutex_unlock(&mutex_hash);
-			sem_post(&full_hash);
-
-			//lecture du hash suivant
-			r = read(fd, ptr, sizeof(hash));
-			if(r==0)
-			{
-				// pthread_mutex_lock(&mutex_hash); //Me - utilité ?
-				printf("le nombre de bytes restant est %d\n", r);
-				fin_de_lecture=1;
-				// pthread_mutex_unlock(&mutex_hash); //Me - utilité ?
-			}
-		}
-		free(ptr);
-		close(fd);
-		printf("Fin de la lecture du %d ème fichier dans lectureFichier()\n",i+1);
-	}
-
-	printf("Fin de la lecture lectureFichier()\n");
-	return EXIT_SUCCESS;
-}
 
 /*--------------------------MAIN------------------------------------*/
 
