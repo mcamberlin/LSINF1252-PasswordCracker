@@ -8,6 +8,9 @@
 #include <fcntl.h>   		// pour utiliser open()
 #include <semaphore.h> 		// pour les sémaphores
 #include <pthread.h>  		// pour les threads 
+#include "lectureFichier.h"
+#include "insert.h"
+#include "lectureFichier.h"
 
 /*-------------------Lecture de fichier ----------------------------*/
 
@@ -21,7 +24,7 @@ void *lectureFichier()
 	{
 		fin_de_lecture = 0;
 
-		
+
 		char* fichier = (char*) malloc(sizeof(fichiersEntree[i])); 
 		if(fichier==NULL)
 		{
@@ -29,7 +32,7 @@ void *lectureFichier()
 			return (void*) EXIT_FAILURE;
 		}
 		strcpy(fichier,fichiersEntree[i]); 
-		
+
 		// Déterminer le nombre maximal de threads de calcul
 		struct stat stat_fichier;
 		if(stat(fichier, &stat_fichier)==-1)

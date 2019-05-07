@@ -82,11 +82,13 @@ pthread_mutex_t mutex_hash;
 sem_t empty_hash; 
 sem_t full_hash; 
 
+/* declare dans un header
 // Déclaration d'une structure représentant un hash  
 typedef struct hash
 {
 	char hash[32]; // 1 hash = 32 bytes et 1char = 1 byte
 }hash;
+*/
 
 // Déclaration d'un tableau de pointeurs de hash
 hash** tab_hash;
@@ -101,13 +103,14 @@ sem_t full_mdp;
 // Déclaration d'un tableau de pointeurs de mots de passe 
 char** tab_mdp;
 
+/* deja declare dans uun header
 // Déclaration d'une structure représentant un noeud de la simple liste chaînée
 typedef struct node
 {
     char mdp[LENPWD];
     struct node *next;
 }node;
-
+*/
 // Déclaration d'une la liste simplement chainée
 node** head;
 
@@ -157,7 +160,7 @@ int printList(node** head)
 {
 	if(head == NULL) 
 	{
-		fprintf(stdeheadrr, "**head non spécifié dans printList() \n");
+		fprintf(stderr, "**head non spécifié dans printList() \n");
 		return -1;
 	}
 	if(*head == NULL) // cas où la liste est vide

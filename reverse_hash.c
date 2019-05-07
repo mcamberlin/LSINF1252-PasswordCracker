@@ -10,6 +10,8 @@
 #include <pthread.h>  		// pour les threads 
 #include "sha256.h"
 #include "reverse.h"
+#include "lectureFichier.h"
+#include "insert.h"
 
 /** La fonction reverse_hash() est le consommateur du 1er producteur-consommateur et prend un hash contenu dans la ressource @tab_hash et calcul son inverse avec reversehash() et insère son résultat dans la ressource @tab_mdp.
 	@pre - 

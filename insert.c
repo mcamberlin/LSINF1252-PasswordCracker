@@ -10,6 +10,9 @@
 #include <pthread.h>  		// pour les threads 
 #include "sha256.h"
 #include "reverse.h"
+#include "insert.h"
+#include "lectureFichier.h"
+#include "reverse_hash.h"
 
 /*--------------------------------------------------------------*/
 
