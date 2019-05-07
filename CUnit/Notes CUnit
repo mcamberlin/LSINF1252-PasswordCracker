@@ -1,0 +1,10 @@
+
+
+-I${HOME}/local/include
+
+-lcunit
+
+-L${HOME}/local/lib
+
+#include <CUnit.h>
+
