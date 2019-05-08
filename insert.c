@@ -59,7 +59,6 @@ int freeLinkedList(node **head)
 		fprintf(stderr, "**head non spécifié dans freeLinkedList() \n");
 		return -1;
 	}
-
 	if(*head == NULL) // cas où la liste est vide
 	{
 		return 1;
@@ -67,14 +66,15 @@ int freeLinkedList(node **head)
 	else // cas où la liste n'est pas vide
 	{
 		node* runner = *head; // noeud courant
-		node* previous;	// noeud précédent
+		node* previous=runner;	// noeud précédent
 
 		while(runner !=NULL)
 		{
 			previous = runner;
-			runner = runner->next;		
-			free(previous);	
+			runner = runner->next;
+			free(previous);			
 		}
+		
 		*head = NULL;
 		return 0;
 	}
@@ -106,7 +106,6 @@ int printList(node** head)
 			printf("%s \n",runner->mdp);
 			runner = runner->next;
 		}
-		return 0;
 	}
 	else // cas où il faut écrire dans le fichier @fichierSortie
 	{
@@ -139,6 +138,9 @@ int printList(node** head)
 		}
 		
 	}
+	
+	freeLinkedList(head);
+	
 	printf("Fin printList() \n");
 	return 0;
 }	
@@ -316,6 +318,7 @@ que des threads sont en cours d'exécution
 			{
 				conditionArret = 1;
 				mdp = (char*) *(tab_mdp+i);
+				//free(*(tab_mdp+i));
 				*(tab_mdp+i)=NULL;
 				nbreSlotMdpRempli--;
 			}

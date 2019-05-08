@@ -43,12 +43,60 @@
 #include <pthread.h>  		// pour les threads 
 #include "sha256.h"
 #include "reverse.h"
+#include <time.h> 		// pour chronométrer le temps d'exécution du programme
 
 // Includes pour utiliser nos fonctions
 #include "variables.h"
 #include "insert.h" 		
 #include "reverse_hash.h" 	
 #include "lectureFichier.h"
+
+const int LENPWD = 16; // Nbre maximal de caractères dans les mots de passes originels
+const char RETOUR_LIGNE = '\n';
+const char CONSONNES[] = {'b','c','d','f','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z'};
+const char VOYELLES[] = {'a','e','i','o','u','y'};
+
+
+// Valeurs par défaut
+int nbreThreadsCalcul = 1;
+int N = 2;			// Le nombre de slot du buffer
+int critereVoyelles = 1;	// true
+int sortieStandard = 1;		// true
+int nbreFichiersEntree = 1;	// Entier comptant le nombre de fichiers binaires donnés en entrée
+char* fichierSortie;		// Pointeur vers le nom du fichier de sortie si -o est spécifié
+char** fichiersEntree; 		// Tableau de pointeurs vers les fichiers d'entrée
+int occurenceVoyelles=0;	// Entier du nbre maximal d'occurences de voyelles dans un mdp
+int occurenceConsonnes=0;	// Entier du nbre maximal d'occurences de consonnes dans un mdp
+
+// Valeurs initiales
+int fin_de_lecture = 0;       	// Initialement à false
+int nbreSlotHashRempli = 0;	// Initialement à 0
+int nbreSlotMdpRempli = 0;	// Initialement à 0
+int CalculExecution = 0; 	// Cette variable est un booléen qui permet de savoir si des calculs sont en cours d'exécution
+
+
+// Initialisation du mutex et des 2 sémaphores pour protéger la ressource tab_hash
+pthread_mutex_t mutex_hash;
+sem_t empty_hash; 
+sem_t full_hash; 
+
+// Déclaration d'un tableau de pointeurs de hash
+hash** tab_hash;
+
+
+
+// Initialisation du mutex et des 2 sémaphores pour protéger la ressource tab_mdp
+pthread_mutex_t mutex_mdp;
+sem_t empty_mdp; 
+sem_t full_mdp; 
+
+// Déclaration d'un tableau de pointeurs de mots de passe 
+char** tab_mdp;
+
+// Déclaration d'une la liste simplement chainée
+node** head;
+
+
 
 
 
@@ -64,26 +112,8 @@
 */
 int main(int argc, char *argv[]) 
 {
-	clock_t begin = clock(); // Démarrer le chronomètre
 
-	nbreThreadsCalcul = 1;
-	N = 2;			// Le nombre de slot du buffer
-	critereVoyelles = 1;	// true
-	sortieStandard = 1;		// true
-	nbreFichiersEntree = 1;	// Entier comptant le nombre de fichiers binaires donnés en entrée
-			// Pointeur vers le nom du fichier de sortie si -o est spécifié
- 		// Tableau de pointeurs vers les fichiers d'entrée
-	occurenceVoyelles=0;	// Entier du nbre maximal d'occurences de voyelles dans un mdp
-	occurenceConsonnes=0;	// Entier du nbre maximal d'occurences de consonnes dans un mdp
-
-// Valeurs initiales
-	fin_de_lecture = 0;       	// Initialement à false
-	nbreSlotHashRempli = 0;	// Initialement à 0
-	nbreSlotMdpRempli = 0;	// Initialement à 0
-	CalculExecution = 0; 	// Cette variable est un booléen qui permet de savoir si des calculs sont en cours d'exécution
-
-
-
+	int begin = time(NULL); // Démarrer le chronomètre
 	printf("\n \t\t\t Interprétation des commandes \n");
 	int opt;
 	int index = 1; // index des fichiers binaires
@@ -146,6 +176,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Erreur sem_init() du sémaphore full_hash : \n");
 		return EXIT_FAILURE;
 	}
+
 
 	// Création du tableau de pointeurs contenant les hash
 	tab_hash = (struct hash**) malloc( N*sizeof(hash*));
@@ -237,7 +268,6 @@ int main(int argc, char *argv[])
 	// Boucle pour la création de plusieurs threads pour la lecture
 	for(int i=0; i<nbreThreadsCalcul; i++)
 	{
-		// Me - y a pas ca aussi : pthread_join(producteur,NULL); ?
 		pthread_join(calculateur[i],NULL);
 	}
 
@@ -245,6 +275,7 @@ int main(int argc, char *argv[])
 
 	free(tab_hash);
 	free(tab_mdp);
+	free(fichiersEntree);
 
 	if(printList(head) == -1)
 	{
@@ -252,9 +283,10 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	clock_t end = clock(); // Arrêter le chronomètre
-	double temps = (double)(end - begin) / CLOCKS_PER_SEC;
-	printf("Le programme a pris %lf secondes à s'exécuter. \n",temps);
+	free(head);
+
+	int end = time(NULL)-begin; // Arrêter le chronomètre
+	printf("Le programme a pris %d secondes à s'exécuter. \n",end);
         printf ("\n \n \nFin du programme...\n");
         return EXIT_SUCCESS;
 

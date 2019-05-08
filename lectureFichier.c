@@ -22,34 +22,13 @@
 */
 void *lectureFichier()
 {
+	char* fichier;
 	for(int i=0; i<nbreFichiersEntree;i++)
 	{
-		fin_de_lecture = 0;
+		int fin_de_lecture_du_fichier = 0;
+		fichier = *(fichiersEntree+i); 
 
-
-		char* fichier = (char*) malloc(sizeof(fichiersEntree[i])); 
-		if(fichier==NULL)
-		{
-			fprintf(stderr, "Erreur allocation mémoire pour fichier\n");
-			return (void*) EXIT_FAILURE;
-		}
-		strcpy(fichier,fichiersEntree[i]); 
-
-		// Déterminer le nombre maximal de threads de calcul
-		struct stat stat_fichier;
-		if(stat(fichier, &stat_fichier)==-1)
-		{
-			fprintf(stderr, "Erreur stat fichier\n");
-			return (void*) EXIT_FAILURE;
-		}
-		int nbre_de_hash = (stat_fichier.st_size)/32;
-		if(nbre_de_hash<nbreThreadsCalcul) // Si le nbre threads de calcul > nbre de hash, alors, nbre threads de calcul = nbre hash
-		{
-			nbreThreadsCalcul = nbre_de_hash;
-			N = nbreThreadsCalcul*2;
-		}
-
-		// Ouvrir le ième fichier binaires
+		// Ouvrir le ième fichier binaire
 		int fd = open((char*)fichier, O_RDONLY);
 		if(fd ==-1)
 		{
@@ -58,11 +37,12 @@ void *lectureFichier()
 		}
 
 		hash* ptr = (hash*) malloc(sizeof(hash));
-		if(ptr==NULL)
+		if(ptr == NULL)
 		{
-			fprintf(stderr, "Erreur malloc allocation mémoire ptr dans lectureFichier()\n");
+			fprintf(stderr, "Erreur allocation mémoire pour ptr \n");
 			close(fd);
 			return (void*) EXIT_FAILURE;
+			
 		}
 
 		int r = read(fd, ptr,sizeof(hash));
@@ -74,7 +54,7 @@ void *lectureFichier()
 			return (void*) EXIT_FAILURE;
 		}
 
-		while(!fin_de_lecture) //tant que la lecture du fichier binaire @fichier n'est pas terminée
+		while(!fin_de_lecture_du_fichier) //tant que la lecture du fichier binaire @fichier n'est pas terminée
 		{
 			//Début section critique
 			sem_wait(&empty_hash);
@@ -111,12 +91,14 @@ void *lectureFichier()
 			r = read(fd, ptr, sizeof(hash));
 			if(r==0)
 			{
-				// pthread_mutex_lock(&mutex_hash); //Me - utilité ?
+				
 				printf("le nombre de bytes restant est %d\n", r);
-				fin_de_lecture=1;
-				// pthread_mutex_unlock(&mutex_hash); //Me - utilité ?
+				pthread_mutex_lock(&mutex_hash); //Me - utilité ?
+				fin_de_lecture_du_fichier=1;
+				pthread_mutex_unlock(&mutex_hash); //Me - utilité ?
 			}
 		}
+		fin_de_lecture = 1;
 		free(ptr);
 		close(fd);
 		printf("Fin de la lecture du %d ème fichier dans lectureFichier()\n",i+1);

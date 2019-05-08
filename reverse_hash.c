@@ -24,7 +24,11 @@ void* reverse_hash()
 	while(!fin_de_lecture || nbreSlotHashRempli)
 	// Tant que la lecture du fichier n'est pas finie ou que la ressouce @tab_hash n'est pas vide.
 	{
+		pthread_mutex_lock(&mutex_hash);
 		CalculExecution++;
+		pthread_mutex_unlock(&mutex_hash);
+
+		
 		char* mdp = (char*) malloc(sizeof(char)*LENPWD);
 		if(mdp == NULL)
 		{
@@ -44,6 +48,7 @@ void* reverse_hash()
 			{
 				conditionArret = 1;
 				hash = (uint8_t*) *(tab_hash+i);
+				//free(*(tab_hash+i));
 				*(tab_hash+i)=NULL;
 				nbreSlotHashRempli--;
 			}
@@ -79,15 +84,17 @@ void* reverse_hash()
 
 			
 			// fin section critique
-			printf("Fin section critique producteur reversehash\n");
 			pthread_mutex_unlock(&mutex_mdp);
 			sem_post(&full_mdp);
+			printf("Fin section critique producteur reversehash\n");
 		}
 		else // cas où reversehash() n'a pas trouvé le mdp originel
 		{
 			printf("Pas de mot de passe en clair trouvé pour ce hash\n ");
 		}
+		pthread_mutex_lock(&mutex_hash);
 		CalculExecution--;
+		pthread_mutex_unlock(&mutex_hash);
 	}
 	printf("fin reverse_hash() \n");
 	return EXIT_SUCCESS;
