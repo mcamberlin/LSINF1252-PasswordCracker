@@ -63,8 +63,8 @@ int N = 2;			// Le nombre de slot du buffer
 int critereVoyelles = 1;	// true
 int sortieStandard = 1;		// true
 int nbreFichiersEntree = 1;	// Entier comptant le nombre de fichiers binaires donnés en entrée
-char* fichierSortie;		// Pointeur vers le nom du fichier de sortie si -o est spécifié
-char** fichiersEntree; 		// Tableau de pointeurs vers les fichiers d'entrée
+char* fichierSortie=NULL;	// Pointeur vers le nom du fichier de sortie si -o est spécifié
+char** fichiersEntree=NULL; 	// Tableau de pointeurs vers les fichiers d'entrée
 int occurenceVoyelles=0;	// Entier du nbre maximal d'occurences de voyelles dans un mdp
 int occurenceConsonnes=0;	// Entier du nbre maximal d'occurences de consonnes dans un mdp
 
@@ -77,11 +77,11 @@ int CalculExecution = 0; 	// Cette variable est un booléen qui permet de savoir
 
 // Initialisation du mutex et des 2 sémaphores pour protéger la ressource tab_hash
 pthread_mutex_t mutex_hash;
-sem_t empty_hash; 
-sem_t full_hash; 
+sem_t empty_hash;
+sem_t full_hash;
 
 // Déclaration d'un tableau de pointeurs de hash
-hash** tab_hash;
+hash** tab_hash=NULL;
 
 
 
@@ -91,10 +91,10 @@ sem_t empty_mdp;
 sem_t full_mdp; 
 
 // Déclaration d'un tableau de pointeurs de mots de passe 
-char** tab_mdp;
+char** tab_mdp=NULL;
 
 // Déclaration d'une la liste simplement chainée
-node** head;
+node** head=NULL;
 
 
 
@@ -159,8 +159,28 @@ int main(int argc, char *argv[])
 	}
 	printf("\t\t\t Fin de l'interprétation des commandes \n\n");
 
+	int nbreHashTotal=0;
+	for(int i=0; i<nbreFichiersEntree; i++)
+	{
+		struct stat st;
+		printf("le fichier traité est %s\n", *(fichiersEntree+i));
+		if(stat(*(fichiersEntree+i), &st)==-1)
+		{
+			fprintf(stderr, "Erreur fichier\n");
+			return EXIT_FAILURE;
+		}
+		nbreHashTotal += (st.st_size)/32;
+	}
+	if(nbreHashTotal < nbreThreadsCalcul)
+	{
+		printf("Le nombre de hash total est %d\n\n", nbreHashTotal);
+		nbreThreadsCalcul = nbreHashTotal;
+		N = 2*nbreThreadsCalcul;
+	}
+
+
 	// Initialisation du mutex et des sémaphores pour tab_hash
-	
+		
 	if(pthread_mutex_init(&mutex_hash, NULL) !=0)// cas où pthread_mutex_init() a planté 
 	{
 		fprintf(stderr, "Erreur pthread_mutex_init() du mutex @mutex_hash\n");
@@ -273,9 +293,6 @@ int main(int argc, char *argv[])
 
 	pthread_join(comparateur,NULL);
 
-	free(tab_hash);
-	free(tab_mdp);
-	free(fichiersEntree);
 
 	if(printList(head) == -1)
 	{
@@ -283,6 +300,14 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
+	sem_destroy(&empty_hash);
+	sem_destroy(&full_hash);
+	sem_destroy(&empty_mdp);
+	sem_destroy(&full_mdp);
+
+	free(tab_hash);
+	free(tab_mdp);
+	free(fichiersEntree);
 	free(head);
 
 	int end = time(NULL)-begin; // Arrêter le chronomètre

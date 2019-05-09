@@ -112,7 +112,8 @@ int printList(node** head)
 
 		printf("Début printList() dans le cas ou il faut ecrire dans un fichier de sortie \n");
 
-		FILE* fichier = fopen(fichierSortie, "w+");
+		FILE* fichier = NULL;
+		fichier = fopen(fichierSortie, "w+");
 		if(fichier == NULL) // cas où @fopen() a planté
 		{
 			printf("Erreur dans l'ouverture du fichier: \n");
@@ -130,20 +131,19 @@ int printList(node** head)
 			runner = runner->next;
 		}
 
-		fclose(fichier);
 		if(fclose(fichier) !=0)
 		{
 			fprintf(stderr, "Erreur fermeture dans printList()\n");
 		    	return -1;
 		}
-		
+
 	}
-	
+
 	freeLinkedList(head);
-	
+
 	printf("Fin printList() \n");
 	return 0;
-}	
+}
 
 /*--------------------------------------------------------------*/
 
