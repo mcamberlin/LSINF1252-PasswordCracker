@@ -302,10 +302,22 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	sem_destroy(&empty_hash);
-	sem_destroy(&full_hash);
-	sem_destroy(&empty_mdp);
-	sem_destroy(&full_mdp);
+	if(sem_destroy(&empty_hash)!=0)
+	{
+		return EXIT_FAILURE;
+	}
+	if(sem_destroy(&full_hash)!=0)
+	{
+		return EXIT_FAILURE;
+	}
+	if(sem_destroy(&empty_mdp)!=0)
+	{
+		return EXIT_FAILURE;
+	}
+	if(sem_destroy(&full_mdp)!=0)
+	{
+		return EXIT_FAILURE;
+	}
 
 	free(tab_hash);
 	free(tab_mdp);
