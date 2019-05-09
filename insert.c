@@ -112,7 +112,7 @@ int printList(node** head)
 
 		printf("Début printList() dans le cas ou il faut ecrire dans un fichier de sortie \n");
 
-		FILE* fichier = fopen(fichierSortie, "w+");
+		FILE* fichier = fopen(fichierSortie, "w");
 		if(fichier == NULL) // cas où @fopen() a planté
 		{
 			printf("Erreur dans l'ouverture du fichier: \n");
