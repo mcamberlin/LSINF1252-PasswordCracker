@@ -52,7 +52,7 @@ int count_consonants(char* monString)
 	@pre 	- @head = un pointeur vers le pointeur head. Si @head == NULL, retourne -1
 	@post 	- 0 si la suppression de la liste chaînée s'est réalisée avec succès, -1 sinon
 */
-int freeLinkedList(node **head) 
+int freeLinkedList(node **head)
 {
 	if(head == NULL)
 	{
@@ -118,7 +118,7 @@ int printList(node** head)
 			printf("Erreur dans l'ouverture du fichier: \n");
 			return -1;
 		}
-		
+
 		node* runner = *head;
 
 		while(runner != NULL)
@@ -129,7 +129,7 @@ int printList(node** head)
 			//printf("%s \n",runner->mdp);
 			runner = runner->next;
 		}
-	
+
 		fclose(fichier);
 		if(fclose(fichier) !=0)
 		{
