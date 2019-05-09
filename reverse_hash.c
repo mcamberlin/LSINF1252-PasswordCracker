@@ -27,9 +27,9 @@ void* reverse_hash()
 		pthread_mutex_lock(&mutex_hash);
 		CalculExecution++;
 		pthread_mutex_unlock(&mutex_hash);
-
 		
 		char* mdp = (char*) malloc(sizeof(char)*LENPWD);
+		printf("\n %d \n",LENPWD);
 		if(mdp == NULL)
 		{
 			fprintf(stderr, "Erreur allocation mémoire mdp dans affiche_hash\n");
@@ -48,6 +48,7 @@ void* reverse_hash()
 			{
 				conditionArret = 1;
 				hash = (uint8_t*) *(tab_hash+i);
+				printf("Le pointeur de hash dans reverse_hash est %p \n",*(tab_hash+i));
 				//free(*(tab_hash+i));
 				*(tab_hash+i)=NULL;
 				nbreSlotHashRempli--;
@@ -59,9 +60,9 @@ void* reverse_hash()
 		// fin section critique
 
 		printf("début reversehash() \n");
-		if( reversehash(hash, mdp, LENPWD) ) // cas où reversehash() a trouvé le mdp originel
+		if( reversehash(hash, mdp, 16) ) // cas où reversehash() a trouvé le mdp originel
 		{
-			printf("\nle hash affiché grace à reverse_hash est %s\n\n", mdp);
+			printf("le hash affiché grace à reverse_hash est %s\n\n", mdp);
 			
 			// début section critique
 			printf("Début section critique producteur reversehash() \n");
@@ -92,6 +93,7 @@ void* reverse_hash()
 		{
 			printf("Pas de mot de passe en clair trouvé pour ce hash\n ");
 		}
+		//freeter ici
 		pthread_mutex_lock(&mutex_hash);
 		CalculExecution--;
 		pthread_mutex_unlock(&mutex_hash);

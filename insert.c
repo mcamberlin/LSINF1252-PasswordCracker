@@ -52,7 +52,7 @@ int count_consonants(char* monString)
 	@pre 	- @head = un pointeur vers le pointeur head. Si @head == NULL, retourne -1
 	@post 	- 0 si la suppression de la liste chaînée s'est réalisée avec succès, -1 sinon
 */
-int freeLinkedList(node **head)
+int freeLinkedList(node** head)
 {
 	printf("Début freeLinkedList \n");
 	if(head == NULL)
@@ -112,14 +112,10 @@ int printList(node** head)
 	{
 
 		printf("Début printList() dans le cas ou il faut ecrire dans un fichier de sortie \n");
-<<<<<<< HEAD
 
 		FILE* fichier = NULL;
 		fichier = fopen(fichierSortie, "w+");
-=======
-		FILE* fichier = fopen(fichierSortie, "w+");
 		printf("Apres OPEN \n");
->>>>>>> 2d5d3f7447461055e07ed5f36151102c1d39dabd
 		if(fichier == NULL) // cas où @fopen() a planté
 		{
 			printf("Erreur dans l'ouverture du fichier: \n");
@@ -144,20 +140,7 @@ int printList(node** head)
 		}
 
 	}
-<<<<<<< HEAD
-
-	freeLinkedList(head);
-
-=======
 	
-	
-	if(freeLinkedList(head)!=0)
-	{
-		printf("Erreur dans freeLinkedList\n");
-		return EXIT_FAILURE;
-	}
-	
->>>>>>> 2d5d3f7447461055e07ed5f36151102c1d39dabd
 	printf("Fin printList() \n");
 	return 0;
 }
@@ -231,7 +214,7 @@ int insert(node **head, char val[])
         	newNode->next = *head;
         	*head = newNode;
         	return 0;
-	}    
+	}     
 }
 /** La fonction insertInList() compare le nombre d'occurences soit de voyelles, soit de consonnes dans la chaîne de caractères @mdp avec le nombre d'occurences maximal mis à jour au fur et à mesure en variable globale. 
 Si le nbre d'occurences de voyelles ou consonnes est respectivement supérieur à @occurenceVoyelles, @occurenceConsonnes, alors, la liste chainée actuelle est libérée et une nouvelle est créée pour y placer @mdp.
@@ -259,6 +242,7 @@ int insertInList(char* mdp)
 		if(vowels>occurenceVoyelles)
 		{
 			occurenceVoyelles = vowels;
+			printf("la faute est la (insetInList)\n");
 			if(freeLinkedList(head) ==-1) // Libération de toute la liste chainée
 			{
 				return -1;

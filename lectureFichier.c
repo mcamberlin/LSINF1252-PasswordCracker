@@ -14,11 +14,12 @@
 #include "lectureFichier.h"
 
 
+
 /*-------------------Lecture de fichier ----------------------------*/
 
 /** La fonction lectureFichier() lis par 32 bytes le(s) fichier(s) binaire(s) dans @fichiersEntree et remplit au fur et à mesure la ressource @tab_hash de hash. 
 	@pre - 
-	@post   - retourne EXIT_SUCCESS si la lecture et l'ajout s'est réalisé avec succès, EXIT_FAILURE sinon
+	@post - retourne EXIT_SUCCESS si la lecture et l'ajout s'est réalisé avec succès, EXIT_FAILURE sinon
 */
 void *lectureFichier()
 {
@@ -27,7 +28,7 @@ void *lectureFichier()
 	{
 		int fin_de_lecture_du_fichier = 0;
 		fichier = *(fichiersEntree+i); 
-
+		
 		// Ouvrir le ième fichier binaire
 		int fd = open((char*)fichier, O_RDONLY);
 		if(fd ==-1)
@@ -35,7 +36,7 @@ void *lectureFichier()
 			fprintf(stderr, "Erreur d'ouverture dans lectureFichier() \n");
 			return (void*) EXIT_FAILURE;
 		}
-
+		
 		hash* ptr = (hash*) malloc(sizeof(hash));
 		if(ptr == NULL)
 		{
@@ -44,7 +45,7 @@ void *lectureFichier()
 			return (void*) EXIT_FAILURE;
 			
 		}
-
+		
 		int r = read(fd, ptr,sizeof(hash));
 		if(r==-1)
 		{
@@ -53,13 +54,14 @@ void *lectureFichier()
 			close(fd);
 			return (void*) EXIT_FAILURE;
 		}
-
+		
 		while(!fin_de_lecture_du_fichier) //tant que la lecture du fichier binaire @fichier n'est pas terminée
 		{
 			//Début section critique
+			printf("avant sem\n");
 			sem_wait(&empty_hash);
 			pthread_mutex_lock(&mutex_hash);
-
+			
 			// Chercher de la place dans le tableau pour ajouter
 			int place_trouvee = 0;
 			for(int i=0; i<N  && !place_trouvee; i++)
@@ -77,12 +79,12 @@ void *lectureFichier()
 					}
 					memcpy(ptrhash, ptr, sizeof(hash));
 					*(tab_hash+i)=ptrhash;
-					printf("L'adresse dans tab_hash est : %p à l'indice %d (lecture)\n", *(tab_hash+i), i);
+					printf("Le pointeur de hash dans lectureFichier est %p \n",*(tab_hash+i));
 					
 					nbreSlotHashRempli++;
 				}
 			}
-
+			
 			// Fin section critique
 			pthread_mutex_unlock(&mutex_hash);
 			sem_post(&full_hash);

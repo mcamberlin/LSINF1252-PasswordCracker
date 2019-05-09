@@ -1,5 +1,5 @@
 /*
-	Fichier testCUnit.c est le fichier qui teste le fonctionnement de la fonction lectureFichier()
+	Fichier testCUnit.c est le fichier qui teste le fonctionnement de la fonction lectureFichier(). Il utilise en entrée le fichier binaire ouinon.bin qui contient le hash de non et de oui dans cet ordre
 
 	Auteurs:
 		- CAMBERLIN Merlin
@@ -8,11 +8,7 @@
 	
 	Commandes: 
 		- echo -n oui | sha256sum | xxd -r -p - "output.bin"
-
-	Arguments à spécifier:
-		- -I${HOME}/local/include
-		- -lcunit
-		- -L${HOME}/local/lib
+		- gcc testCUnit.c reverse.c sha256.c lectureFichier.c reverse_hash.c insert.c -o test -I${HOME}/local/include -lcunit -L${HOME}/local/lib -lpthread
 
 	Commandes git:
 		- git status
@@ -41,8 +37,10 @@
 #include "insert.h" 		
 #include "reverse_hash.h" 	
 #include "lectureFichier.h"
+
+
 #include <CUnit/CUnit.h>
-//#include <Cunit.h>
+#include "CUnit/Basic.h"
 
 
 const int LENPWD = 16; // Nbre maximal de caractères dans les mots de passes originels
@@ -92,39 +90,117 @@ node** head;
 
 
 
-/** La fonction test_lectureFichier_true() vérifie que lectureFichier() ne retourne pas une erreur (void*) EXIT_FAILURE.
-*/
-void test_lectureFichier_true(void)
-{	
-	fichierTest1 = "test-input/02_6c_5.bin";
-	fichiersEntree = &fichierTest1;
-	CU_ASSERT_NOT_EQUAL(lectureFichier(),(void*) EXIT_FAILURE);
-}
 
-/** La fonction test_lectureFichier_insertion() vérifie que lectureFichier() remplit le premier buffer de 5 pointeurs. Pour le vérifier, on initialise les cellules du buffer à NULL et on vérifie ensuite que leurs valeurs a été modifiées.
+
+
+
+
+
+int init_suite(void) { return 0; }
+int clean_suite(void) { return 0; }
+
+char* fichierTest1 = "ouinon.bin";
+
+
+
+/** La fonction test_lectureFichier_true() lance lectureFichier() et vérifie qu'elle ne retourne pas une erreur.
 */
-void test_lectureFichier_insertion(void)
-{
-	char fichierTest1[] = "test-input/02_6c_5.bin";
-	fichiersEntree = &fichierTest1;
-	hash** tab_hash = (hash**) malloc(5*sizeof(hash*));
+/*void test_lectureFichier_true(void)
+{	
+	tab_hash = (hash**) malloc(5*sizeof(hash*));
 	if(tab_hash == NULL)
 	{
-		return NULL;
+		return;
 	}
 	for(int i=0; i<5;i++)
 	{
 		*(tab_hash+i)=NULL;
 	}
+	printf("le fichier à lire est %s\n", fichierTest1);
+	fichiersEntree = &fichierTest1;
+
+
+	CU_ASSERT_EQUAL(lectureFichier(),(void*) EXIT_SUCCESS);
+}
+*/
+
+/** La fonction test_lectureFichier_insertion() vérifie que lectureFichier() remplit le premier buffer de 2 pointeurs. Pour le vérifier, on initialise les cellules du buffer à NULL et on vérifie ensuite que leurs valeurs ont été modifiées.
+*/
+void test_lectureFichier_insertion(void)
+{
+	fichiersEntree = &fichierTest1;
+	tab_hash = (hash**) malloc(2*sizeof(hash*));
+	if(tab_hash == NULL)
+	{
+		return;
+	}
+	for(int i=0; i<2;i++)
+	{
+		*(tab_hash+i)=NULL;
+	}
 	lectureFichier();
 
-	for(int i=0; i<5;i++)
+	CU_ASSERT_NOT_EQUAL(*(tab_hash),NULL);
+	CU_ASSERT_NOT_EQUAL(*(tab_hash+1),NULL);
+}
+
+
+/** La fonction test_reverse_hash()  remplit le deuxième buffer de 2 pointeurs vers les 2 mdps. Pour le vérifier, on initialise les cellules du buffer à NULL et on vérifie ensuite que les valeurs valent oui et non respectivement.
+*/
+void test_reverse_hash(void)
+{
+	tab_mdp = (char**) malloc(2*sizeof(char*));
+	if(tab_mdp == NULL)
 	{
-		CU_ASSERT_NOT_EQUAL(*(tab_hash+i),NULL);
-		free(*(tab_hash+i));			
+		return;
 	}
+	*(tab_mdp+0) = "non";
+	*(tab_mdp+0) = "oui";
+
+	for(int i=0; i<2;i++)
+	{
+		*(tab_mdp+i)=NULL;
+	}
+	reverse_hash();
+	printf("le mot de passe 1 est %s\n", *(tab_mdp+0));
+	printf("le mot de passe 2 est %s\n", *(tab_mdp+1));	
+
+	CU_ASSERT_STRING_EQUAL(*(tab_mdp+0),"non");
+	CU_ASSERT_STRING_EQUAL(*(tab_mdp+1),"oui");
+	free(*(tab_hash+0));
+	free(*(tab_hash+1));
 	free(tab_hash);
 }
+
+/** La fonction test_insert() vide le deuxième buffer de 2 mdps pour remplir une liste chainée . Pour le vérifier, on initialise les cellules du deuxième buffer et on initialise la tête de lecture de la liste chaînée. Et on vérifie que la liste chainée contient oui 
+*/
+void test_insert(void)
+{
+	/*tab_mdp = (char**) malloc(2*sizeof(char*));
+	if(tab_mdp == NULL)
+	{
+		return;
+	}
+	*(tab_mdp+0) = "non";
+	*(tab_mdp+1) = "oui";*/
+
+	
+
+	head = (node**) malloc(sizeof(char*));
+	if(head == NULL)
+	{
+		return;
+	}
+
+	insert_mdp();
+
+	CU_ASSERT_STRING_EQUAL((*head)->mdp,"oui");	
+	free(tab_mdp);
+}
+
+
+
+
 
 int main(int argc, char *argv[])
 {
@@ -147,33 +223,58 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	if(CUE_SUCCESS != CU_initialize_registry()) // Initialisation du catalogue
+	// Initialisation du mutex et des semaphores pour tab_mdp
+	
+	pthread_mutex_init(&mutex_mdp, NULL);
+
+	if(sem_init(&empty_mdp, 0, N) != 0)// cas où sem_init a planté 
+	{
+		fprintf(stderr, "Erreur sem_init du sémaphore empty_mdp \n");
+		return EXIT_FAILURE;
+	}
+
+	if(sem_init(&full_mdp, 0, 0) != 0)// cas où sem_init a planté 
+	{
+		fprintf(stderr, "Erreur sem_init du sémaphore full_mdp\n");
+		return EXIT_FAILURE;
+	}
+
+
+
+	CU_pSuite pSuite = NULL;
+	if(CU_initialize_registry()!=CUE_SUCCESS) 
 	{
 		return CU_get_error();
 	}
-	CU_pSuite pSuite = NULL;
-	pSuite = CU_add_suite("Mes tests",NULL,NULL);
-	if(pSuite == NULL)
+	
+	pSuite = CU_add_suite("Mon catalogue", init_suite, clean_suite);
+	if(NULL == pSuite)
 	{
 		CU_cleanup_registry();
 		return CU_get_error();
 	}
-}
 
-/*
-void test_string_equals(void)
-{
-  CU_ASSERT_STRING_EQUAL("string #1", "string #1");
-}
 
-void test_failure(void)
-{
-  CU_ASSERT(false);
-}
 
-void test_string_equals_failure(void)
-{
-  CU_ASSERT_STRING_EQUAL("string #1", "string #2");
+	//4. Ajout des tests à la suite de tests
+	if(CU_add_test(pSuite,"test lecture fichier", test_lectureFichier_insertion)==NULL ||
+	CU_add_test(pSuite,"test reverse_hash", test_reverse_hash)==NULL ||
+	CU_add_test(pSuite,"test insert", test_insert)==NULL)
+	{
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
+
+
+	CU_basic_set_mode(CU_BRM_VERBOSE);
+	CU_basic_run_tests();
+
+	CU_basic_show_failures(CU_get_failure_list());
+	
+	CU_cleanup_registry();
+	printf("\n");
+	return CU_get_error();
+
+	
 }
-*/
 
