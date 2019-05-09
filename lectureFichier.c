@@ -10,8 +10,7 @@
 #include <pthread.h>  		// pour les threads 
 #include "variables.h"
 #include "lectureFichier.h"
-#include "insert.h"
-#include "lectureFichier.h"
+
 
 
 
