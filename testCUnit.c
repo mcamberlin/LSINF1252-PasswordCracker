@@ -147,10 +147,6 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-
-
-
-
 	if(CUE_SUCCESS != CU_initialize_registry()) // Initialisation du catalogue
 	{
 		return CU_get_error();
