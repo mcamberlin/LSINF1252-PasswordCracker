@@ -97,10 +97,6 @@ char** tab_mdp=NULL;
 node** head=NULL;
 
 
-
-
-
-
 /*--------------------------MAIN------------------------------------*/
 
 
@@ -298,8 +294,9 @@ int main(int argc, char *argv[])
 	{
 		printf("Erreur dans printList() \n");
 		return EXIT_FAILURE;
-	}
+	}	
 
+<<<<<<< HEAD
 	sem_destroy(&empty_hash);
 	sem_destroy(&full_hash);
 	sem_destroy(&empty_mdp);
@@ -309,6 +306,8 @@ int main(int argc, char *argv[])
 	free(tab_mdp);
 	free(fichiersEntree);
 	free(head);
+=======
+>>>>>>> 2d5d3f7447461055e07ed5f36151102c1d39dabd
 
 	int end = time(NULL)-begin; // Arrêter le chronomètre
 	printf("Le programme a pris %d secondes à s'exécuter. \n",end);
