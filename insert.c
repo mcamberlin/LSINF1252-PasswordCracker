@@ -54,6 +54,7 @@ int count_consonants(char* monString)
 */
 int freeLinkedList(node **head)
 {
+	printf("Début freeLinkedList \n");
 	if(head == NULL)
 	{
 		fprintf(stderr, "**head non spécifié dans freeLinkedList() \n");
@@ -61,7 +62,7 @@ int freeLinkedList(node **head)
 	}
 	if(*head == NULL) // cas où la liste est vide
 	{
-		return 1;
+		return 0;
 	}
 	else // cas où la liste n'est pas vide
 	{
@@ -74,8 +75,8 @@ int freeLinkedList(node **head)
 			runner = runner->next;
 			free(previous);			
 		}
-		
-		*head = NULL;
+		//free(head);
+		printf("fin freeLinkedList\n");
 		return 0;
 	}
 }
@@ -111,8 +112,8 @@ int printList(node** head)
 	{
 
 		printf("Début printList() dans le cas ou il faut ecrire dans un fichier de sortie \n");
-
-		FILE* fichier = fopen(fichierSortie, "w");
+		FILE* fichier = fopen(fichierSortie, "w+");
+		printf("Apres OPEN \n");
 		if(fichier == NULL) // cas où @fopen() a planté
 		{
 			printf("Erreur dans l'ouverture du fichier: \n");
@@ -126,11 +127,10 @@ int printList(node** head)
 
 			fputs(runner->mdp,fichier);
 			fputs(&RETOUR_LIGNE,fichier);
-			//printf("%s \n",runner->mdp);
+			printf("%s \n",runner->mdp);
 			runner = runner->next;
 		}
 
-		fclose(fichier);
 		if(fclose(fichier) !=0)
 		{
 			fprintf(stderr, "Erreur fermeture dans printList()\n");
@@ -139,7 +139,12 @@ int printList(node** head)
 		
 	}
 	
-	freeLinkedList(head);
+	
+	if(freeLinkedList(head)!=0)
+	{
+		printf("Erreur dans freeLinkedList\n");
+		return EXIT_FAILURE;
+	}
 	
 	printf("Fin printList() \n");
 	return 0;

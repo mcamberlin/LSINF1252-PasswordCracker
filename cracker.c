@@ -277,9 +277,8 @@ int main(int argc, char *argv[])
 	{
 		printf("Erreur dans printList() \n");
 		return EXIT_FAILURE;
-	}
+	}	
 
-	free(head);
 
 	int end = time(NULL)-begin; // Arrêter le chronomètre
 	printf("Le programme a pris %d secondes à s'exécuter. \n",end);
