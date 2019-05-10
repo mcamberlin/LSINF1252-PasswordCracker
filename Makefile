@@ -1,4 +1,3 @@
-ComilateurC = GCC #type de compilateur choisi
 FLAG1 = -Wall # Activer tous les warnings
 FLAG2 = -Werror # Considérer tous les warnings comme des erreurs
 FLAG_THREAD = -lpthread #Pour les threads
