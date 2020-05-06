@@ -2,12 +2,15 @@ FLAG1 = -Wall # Activer tous les warnings
 FLAG2 = -Werror # Considérer tous les warnings comme des erreurs
 FLAG_THREAD = -lpthread #Pour les threads
 
-cracker: cracker.c variables.h insert.h reverse_hash.h lectureFichier.h
-	gcc -o cracker cracker.c lectureFichier.c reverse_hash.c insert.c sha256.c reverse.c $(FLAG1) $(FLAG2) $(FLAG_THREAD)
+cracker: src/cracker.c src/variables.h src/insert.h src/reverse_hash.h src/lectureFichier.h
+	gcc -o cracker src/cracker.c src/lectureFichier.c src/reverse_hash.c src/insert.c src/sha256.c src/reverse.c $(FLAG1) $(FLAG2) $(FLAG_THREAD)
 
-test: testCUnit.c reverse.c sha256.c lectureFichier.c insert.c
-	gcc testCUnit.c reverse.c sha256.c lectureFichier.c insert.c -o test -I${HOME}/local/include -lcunit -L${HOME}/local/lib -lpthread
-	./test
+tests: cracker
+	./cracker -t 2 tests/02_6c_5.bin
+	./cracker -t 100 tests/01_4c_1k.bin
+	./cracker -t 3 tests/nosTests.bin
+	rm cracker
 
 clean:
-	rm cracker
+	rm cracker -f
+	rm test -f
